@@ -1,0 +1,1189 @@
+{
+ "id": "R7_lighting_rules",
+ "version": "2026-09-27 r1",
+ "doc": "references/lighting.md",
+ "scope": "Example calibration from the project the skill was built on: a black glossy product (black lacquer plinth, smoked acrylic cover, brushed and chrome aluminium, black vinyl) in a lived-in room with a west window. Previews Cycles, finals Octane (emitters blackbody except sun/sky). Re-calibrate the thresholds on your own anchors.",
+ "extends": [
+  "references/realism-finishing.md §2 lighting gatekeepers (no product-only linking without a physical reason; set-only twin 25-30 %; room at 0.5-2 % of key; sources >= 5 deg; practicals reflect and spill) and §7 (negative fill is part of daylight realism; matt black plinth face L* 18-28)",
+  "references/elements.md §1-2 (large soft source, strips behind, flags on the mirror ray of the camera)"
+ ],
+ "principle": "Diagnose with the metric first, then add the ONE light the failing rule names, placed in the failing surface's family of angles (its mirror direction as seen from the camera) and dressed as a real object of the loft. On black gloss, fill and rim are reflections, not illumination.",
+ "reads_metric": {
+  "script": "scripts/reads_metric.py  (python reads_metric.py [ids] --root=<shots dir> --out=reads.json)",
+  "inputs": {
+   "display": "previews/<id>.jpg -> CIE L* (what the viewer sees, after the preview view transform)",
+   "masks": "exr/<batch>/<id>.npz 'index' (IndexOB) + exr/<batch>/part_idx.json; the batch = the exr/*/<id>.png closest to the preview (mean |dL*|, all matches <= 1.3)",
+   "geometry": "npz 'depth' (Cycles depth = distance along the ray) + <id>.json camera (lens, shift, matrix_world, sensor 36 mm) -> world normals",
+   "linear": "exr/<batch>/<id>.exr Combined -> Y (Rec.709) for stops"
+  },
+  "masks": {
+   "prod": "IndexOB > 0 minus leads minus the record (vinyl, label, label_b: the record has its own rule, its own record check)",
+   "body": "prod minus hood and hood_pads (the opaque turntable)",
+   "set": "IndexOB == 0"
+  },
+  "measures": {
+   "void_frac": "share of the FRAME that is prod with L* < 10 AND local sigma(L*) < 1.5 over a 7 px window at 960 px: black, structureless product area (a hole in the picture)",
+   "void_top / void_vert": "void_frac split by world normal: top-facing (n_z >= 0.9) vs vertical faces (|n_z| <= 0.35). Picks the light (decision table).",
+   "sep_frac": "figure-ground: prod outline pixels next to set where the set lies BEHIND the product (depth step >= max(5 cm, 10 %)); dL* = |mean L* inside - outside| in 5 px bands (sigma 2 px) at 960 px; share with dL* >= 8. Contact edges (the credenza under the feet) are excluded: a dark contact line is correct.",
+   "sep_frac_body": "the same on the opaque body's outline only; used for the verdict when present (the transparent hood legitimately takes the value of what is behind it)",
+   "subj_ring_dL / subj_rms": "the named subject part (cand.cam.subject / subject_parts): |median L*(part) - median L*(3 % W ring)| and std L* inside the part",
+   "diagnostics_only": "prod_L50, prod_L90, hl_frac (L* >= 50), faces {top,+x,+y,-x,-y: median L*}, face_sep, stops_body_set = log2(Y_body p50 / Y_set p50)",
+   "void_hood": "void pixels on the smoked hood: the deck seen THROUGH the lid is black"
+  },
+  "thresholds": {
+   "void_L_max": 10,
+   "void_sigma_max": 1.5,
+   "void_frac_warn": 0.2,
+   "void_frac_fail": 0.3,
+   "sep_dL_min": 8,
+   "sep_frac_fail": 0.2,
+   "sep_frac_warn": 0.4,
+   "sil_px_min_frac_W": 0.1,
+   "merge_major_prod_frac": 0.5,
+   "subj_ring_dL_min": 5,
+   "subj_rms_min": 5,
+   "verdict": "reads = no fail. R1_void fails > 0.30, warns 0.20-0.30. R2_merges fails < 0.20 when the product is the frame's main shape (whole, or prod >= 50 % of the frame), else warns; warns < 0.40. R3_subject is warn-only (uncalibrated)."
+  },
+  "why_these_numbers": {
+   "L*<10": "[D] L* 10 = Y 1.1 % ~ 4 stops under mid grey = Zone I (no texture); Zone II-III textured black = L* ~16-25; realism-finishing §7 puts a photographed matt black plinth face at L* 18-28 (MoMA PS 2: 22)",
+   "dL*>=8": "[J] ~1.1 stops at dark levels (L* 8 vs 16); a clearly visible edge at video viewing distance, not a just-noticeable one",
+   "void 0.30": "[D] calibration gap: reads anchors <= 0.097, fail anchors >= 0.388",
+   "sep 0.20": "[D] calibration gap: reads anchors with an outline >= 0.97, fail anchor s22_first 0.014"
+  },
+  "calibration": {
+   "reads_anchors": {
+    "s01_key": {
+     "void_frac": 0.097,
+     "sep_frac": 0.997,
+     "prod_L50": 40.1
+    },
+    "s06_last": {
+     "void_frac": 0.012,
+     "sep_frac": 0.987,
+     "prod_L50": 41.5
+    },
+    "s19_first": {
+     "void_frac": 0.068,
+     "sep_frac": null,
+     "prod_L50": 13.6
+    },
+    "s19_key": {
+     "void_frac": 0.074,
+     "sep_frac": 1.0,
+     "prod_L50": 13.4
+    },
+    "s19_last": {
+     "void_frac": 0.042,
+     "sep_frac": null,
+     "prod_L50": 11.2
+    },
+    "s24_first": {
+     "void_frac": 0.012,
+     "sep_frac": null,
+     "prod_L50": 12.7
+    },
+    "s24_key": {
+     "void_frac": 0.012,
+     "sep_frac": null,
+     "prod_L50": 12.7
+    },
+    "s24_last": {
+     "void_frac": 0.009,
+     "sep_frac": null,
+     "prod_L50": 12.7
+    }
+   },
+   "fail_anchors": {
+    "s05_key": {
+     "void_frac": 0.4,
+     "sep_frac": null,
+     "note": "the deck seen through the smoked hood is black (void_vert 0, the void is behind the hood); the plinth front is a flat, uniform grey from the t1 5000 K fill"
+    },
+    "s03_last": {
+     "void_frac": 0.388,
+     "sep_frac": null,
+     "note": "the front face is a black band; the top plate is dim through the hood"
+    },
+    "s22_first": {
+     "void_frac": 0.001,
+     "sep_frac": 0.014,
+     "note": "the out-of-focus plinth front (L* 22) has the value of the background (L* 28 +/- 0.2): merges"
+    }
+   },
+   "separation": "all 11 anchors classified correctly; margins: void 0.097 -> 0.388 (threshold 0.30), sep 0.97 -> 0.014 (threshold 0.20)",
+   "not_discriminating": "prod_L50 (s24 reads at 12.7; s05_key fails at 29.6), dark_frac, hl_frac at L* 50 (fails most readable macros), subject contrast (the fail anchors' subjects are legible). The problem is black holes and lost outlines, not mean brightness."
+  },
+  "results_example": {
+   "file": "reads.json from the example project (all measures, 120 frames)",
+   "counts": {
+    "pass": 29,
+    "warn_only": 35,
+    "fail": 56
+   },
+   "anchors": "11/11 classified as labelled",
+   "fail": {
+    "s02_last": {
+     "state": "s15",
+     "rules": [
+      "R2_merges"
+     ],
+     "cause": [
+      "void:vertical",
+      "merges"
+     ],
+     "void_frac": 0.214,
+     "sep": 0.053
+    },
+    "s03_key": {
+     "state": "s15",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.325,
+     "sep": 1.0
+    },
+    "s03_last": {
+     "state": "s15",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.388,
+     "sep": null
+    },
+    "s05_key": {
+     "state": "s15",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:hood"
+     ],
+     "void_frac": 0.4,
+     "sep": null
+    },
+    "s05_last": {
+     "state": "s15",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:hood"
+     ],
+     "void_frac": 0.667,
+     "sep": null
+    },
+    "s09_first": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.426,
+     "sep": null
+    },
+    "s09_key": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.429,
+     "sep": null
+    },
+    "s09_last": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.459,
+     "sep": null
+    },
+    "s10_first": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.323,
+     "sep": null
+    },
+    "s10_key": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.334,
+     "sep": null
+    },
+    "s10_last": {
+     "state": "s75",
+     "rules": [
+      "R1_void",
+      "R2_merges"
+     ],
+     "cause": [
+      "void:vertical",
+      "merges"
+     ],
+     "void_frac": 0.371,
+     "sep": 0.0
+    },
+    "s11_last": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.368,
+     "sep": null
+    },
+    "s13_last": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top"
+     ],
+     "void_frac": 0.408,
+     "sep": null
+    },
+    "s15_first": {
+     "state": "s75",
+     "rules": [
+      "R2_merges"
+     ],
+     "cause": [
+      "void:vertical",
+      "merges"
+     ],
+     "void_frac": 0.222,
+     "sep": 0.0
+    },
+    "s16_first": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical",
+      "subject"
+     ],
+     "void_frac": 0.328,
+     "sep": null
+    },
+    "s16_key": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical",
+      "subject"
+     ],
+     "void_frac": 0.334,
+     "sep": null
+    },
+    "s16_last": {
+     "state": "s75",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.348,
+     "sep": null
+    },
+    "s20_first": {
+     "state": "s5",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.452,
+     "sep": null
+    },
+    "s20_key": {
+     "state": "s5",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.328,
+     "sep": null
+    },
+    "s20_last": {
+     "state": "s5",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.45,
+     "sep": null
+    },
+    "s21_first": {
+     "state": "s5",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical",
+      "merges"
+     ],
+     "void_frac": 0.305,
+     "sep": 0.124
+    },
+    "s22_first": {
+     "state": "s5",
+     "rules": [
+      "R2_merges"
+     ],
+     "cause": [
+      "merges"
+     ],
+     "void_frac": 0.001,
+     "sep": 0.014
+    },
+    "s23_first": {
+     "state": "s5",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical",
+      "subject"
+     ],
+     "void_frac": 0.39,
+     "sep": 0.911
+    },
+    "s26_key": {
+     "state": "s5",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top"
+     ],
+     "void_frac": 0.312,
+     "sep": null
+    },
+    "s26_last": {
+     "state": "s5",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top"
+     ],
+     "void_frac": 0.425,
+     "sep": null
+    },
+    "s27_first": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top",
+      "subject"
+     ],
+     "void_frac": 0.311,
+     "sep": null
+    },
+    "s27_key": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top",
+      "subject"
+     ],
+     "void_frac": 0.314,
+     "sep": null
+    },
+    "s27_last": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top",
+      "subject"
+     ],
+     "void_frac": 0.498,
+     "sep": null
+    },
+    "s28_first": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.507,
+     "sep": null
+    },
+    "s28_key": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.486,
+     "sep": null
+    },
+    "s28_last": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.558,
+     "sep": null
+    },
+    "s29_first": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top"
+     ],
+     "void_frac": 0.374,
+     "sep": null
+    },
+    "s29_key": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top"
+     ],
+     "void_frac": 0.373,
+     "sep": null
+    },
+    "s29_last": {
+     "state": "s2",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top"
+     ],
+     "void_frac": 0.374,
+     "sep": null
+    },
+    "s31_last": {
+     "state": "d16",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top"
+     ],
+     "void_frac": 0.313,
+     "sep": null
+    },
+    "s32_first": {
+     "state": "d4",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical",
+      "subject"
+     ],
+     "void_frac": 0.927,
+     "sep": null
+    },
+    "s32_key": {
+     "state": "d4",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical",
+      "subject"
+     ],
+     "void_frac": 0.925,
+     "sep": null
+    },
+    "s32_last": {
+     "state": "d4",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.925,
+     "sep": null
+    },
+    "s33_first": {
+     "state": "d4",
+     "rules": [
+      "R1_void",
+      "R2_merges"
+     ],
+     "cause": [
+      "void:vertical",
+      "merges"
+     ],
+     "void_frac": 0.536,
+     "sep": 0.0
+    },
+    "s33_key": {
+     "state": "d4",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.529,
+     "sep": null
+    },
+    "s33_last": {
+     "state": "d4",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:top"
+     ],
+     "void_frac": 0.487,
+     "sep": null
+    },
+    "s35_first": {
+     "state": "d4",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.474,
+     "sep": null
+    },
+    "s35_key": {
+     "state": "d4",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.471,
+     "sep": null
+    },
+    "s35_last": {
+     "state": "d4",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.587,
+     "sep": null
+    },
+    "s36_first": {
+     "state": "d6",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical",
+      "subject"
+     ],
+     "void_frac": 0.691,
+     "sep": null
+    },
+    "s36_key": {
+     "state": "d6",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.707,
+     "sep": null
+    },
+    "s36_last": {
+     "state": "d6",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.704,
+     "sep": null
+    },
+    "s37_first": {
+     "state": "d6",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.461,
+     "sep": null
+    },
+    "s37_key": {
+     "state": "d6",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:vertical"
+     ],
+     "void_frac": 0.361,
+     "sep": null
+    },
+    "s37_last": {
+     "state": "d6",
+     "rules": [
+      "R1_void",
+      "R2_merges"
+     ],
+     "cause": [
+      "void:top",
+      "merges"
+     ],
+     "void_frac": 0.373,
+     "sep": 0.0
+    },
+    "s38_first": {
+     "state": "d6",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:hood",
+      "subject"
+     ],
+     "void_frac": 0.446,
+     "sep": 0.662
+    },
+    "s39_first": {
+     "state": "d6",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:hood",
+      "merges",
+      "subject"
+     ],
+     "void_frac": 0.414,
+     "sep": 0.273
+    },
+    "s39_key": {
+     "state": "d6",
+     "rules": [
+      "R1_void"
+     ],
+     "cause": [
+      "void:hood",
+      "merges",
+      "subject"
+     ],
+     "void_frac": 0.316,
+     "sep": 0.135
+    },
+    "s40_first": {
+     "state": "d6",
+     "rules": [
+      "R1_void",
+      "R2_merges"
+     ],
+     "cause": [
+      "void:vertical",
+      "merges"
+     ],
+     "void_frac": 0.5,
+     "sep": 0.054
+    },
+    "s40_key": {
+     "state": "d6",
+     "rules": [
+      "R1_void",
+      "R2_merges"
+     ],
+     "cause": [
+      "void:vertical",
+      "merges"
+     ],
+     "void_frac": 0.514,
+     "sep": 0.068
+    },
+    "s40_last": {
+     "state": "d6",
+     "rules": [
+      "R1_void",
+      "R2_merges"
+     ],
+     "cause": [
+      "void:vertical",
+      "merges"
+     ],
+     "void_frac": 0.52,
+     "sep": 0.069
+    }
+   },
+   "warn": {
+    "s02_first": [
+     "R1_void"
+    ],
+    "s02_key": [
+     "R1_void"
+    ],
+    "s03_first": [
+     "R1_void"
+    ],
+    "s04_first": [
+     "R1_void"
+    ],
+    "s04_key": [
+     "R1_void"
+    ],
+    "s04_last": [
+     "R1_void"
+    ],
+    "s06_key": [
+     "R2_merges"
+    ],
+    "s08_first": [
+     "R1_void"
+    ],
+    "s08_key": [
+     "R1_void"
+    ],
+    "s08_last": [
+     "R1_void",
+     "R3_subject"
+    ],
+    "s11_first": [
+     "R1_void"
+    ],
+    "s11_key": [
+     "R1_void"
+    ],
+    "s12_first": [
+     "R2_merges"
+    ],
+    "s12_key": [
+     "R2_merges"
+    ],
+    "s12_last": [
+     "R2_merges"
+    ],
+    "s13_first": [
+     "R3_subject"
+    ],
+    "s14_first": [
+     "R1_void"
+    ],
+    "s14_key": [
+     "R1_void"
+    ],
+    "s14_last": [
+     "R1_void"
+    ],
+    "s15_key": [
+     "R1_void",
+     "R3_subject"
+    ],
+    "s15_last": [
+     "R3_subject"
+    ],
+    "s18_first": [
+     "R1_void"
+    ],
+    "s18_key": [
+     "R1_void"
+    ],
+    "s21_key": [
+     "R1_void",
+     "R2_merges"
+    ],
+    "s21_last": [
+     "R1_void",
+     "R2_merges"
+    ],
+    "s23_key": [
+     "R1_void",
+     "R2_merges"
+    ],
+    "s23_last": [
+     "R1_void"
+    ],
+    "s25_last": [
+     "R1_void"
+    ],
+    "s30_first": [
+     "R1_void"
+    ],
+    "s31_first": [
+     "R1_void"
+    ],
+    "s31_key": [
+     "R1_void"
+    ],
+    "s34_first": [
+     "R1_void"
+    ],
+    "s34_key": [
+     "R1_void"
+    ],
+    "s34_last": [
+     "R1_void"
+    ],
+    "s39_last": [
+     "R1_void"
+    ]
+   },
+   "pass": [
+    "s01_first",
+    "s01_key",
+    "s01_last",
+    "s05_first",
+    "s06_first",
+    "s06_last",
+    "s07_first",
+    "s07_key",
+    "s07_last",
+    "s13_key",
+    "s17_first",
+    "s17_key",
+    "s17_last",
+    "s18_last",
+    "s19_first",
+    "s19_key",
+    "s19_last",
+    "s22_key",
+    "s22_last",
+    "s24_first",
+    "s24_key",
+    "s24_last",
+    "s25_first",
+    "s25_key",
+    "s26_first",
+    "s30_key",
+    "s30_last",
+    "s38_key",
+    "s38_last"
+   ],
+   "reading": "Fails cluster in (a) the plinth FRONT face as a black band in macros (Act III s09/s10/s16, IV s20, V s28) -> R1_void_vertical; (b) top-down/overhead frames whose deck mirrors a dark ceiling (s26, s27, s29, s31_last, s13_last) -> R1_void_top; (c) the deck through the smoked lid (s05_key/last, s38_first, s39) -> R1_void_hood; (d) the dusk act (s32-s40: void 0.3-0.93) -> R1_void_dusk; (e) outlines lost (s22_first, s40, s02_last, s10_last, s15_first, s33_first, s37_last) -> R2_merges. Act VI: s30 passes or warns, s31_first/key warn, s31_last fails (top void). Act VII: only s34 (warn), s38_key/last (pass) and s39_last (warn) escape."
+  },
+  "routing": {
+   "R1_void": "if state in (d16, d4, d6): R1_void_dusk; else the largest of void_top / void_vert / void_hood -> R1_void_top / R1_void_vertical / R1_void_hood",
+   "R2_merges": "R2_merges",
+   "R3_subject": "R3_subject",
+   "no fail but face lit flat (face_sep < 5 on a big face, no void)": "R1_flat",
+   "black reads grey/wet (body L50 > 35 on a face, dark_frac ~ 0)": "R1_wet"
+  }
+ },
+ "decision_table": [
+  {
+   "key": "R1_void_vertical",
+   "symptom": "void on camera-facing vertical faces (plinth front/side reads as a black slab); void_vert > void_top",
+   "light": "bounce fill seen IN REFLECTION (a large soft source in the face's family of angles)",
+   "placement": "source centre on the face's mirror ray r = 2(n.v)n - v (v = unit vector face -> camera, n = face normal); for a vertical face that is the camera's azimuth mirrored about n at the camera's elevation; d_s = 1-3 x face width",
+   "size": "to fill the face's reflection: s >= L_face (D_cam + d_s) / D_cam; subtended >= 5 deg (measured), soft = s >= 0.5 d_s (>= 28 deg); for a gradient, put the source EDGE across the mirror ray instead of its centre",
+   "ratio": "the face should land at L* 18-28 (textured black, Zone II-III). Lacquer reflects F ~0.04 (normal) to ~0.09 (60 deg) at n 1.5, so the reflected thing must be about as bright as a KEY-LIT WHITE CARD: albedo 0.8 under E_key -> face L* ~21 (normal) to ~32 (60 deg). A room surface at 1/4 of the key leaves the face at L* ~7-14 (void). [D, assumes an 18 % card under the key at L* ~50]",
+   "cct": "the colour of what it bounces: sunlit off-white = sun CCT (3700 K at s15 -> 2000 K at s05); skylit wall 6500-9000 K; a lamp shade 2700 K",
+   "motivation_in_loft": "the sun beam lands in the room (it 'travels in toward the brick wall'): a sunlit floor patch, the sofa, a white LP sleeve, a sheet of paper, a pale wall panel on the camera side. Build it as REAL diffuse geometry (albedo 0.7-0.8) lit by the sun; only if it cannot be in the sun, an emitter shaped like that object, in lightgroup 'fill', Glossy/Specular visibility ON.",
+   "avoid": "a uniform on-axis fill that turns the lacquer into flat grey (s05_key t1: 900 mm, 180 W, 5000 K under a 3700 K sun)"
+  },
+  {
+   "key": "R1_void_hood",
+   "symptom": "the deck seen through the smoked hood is black (void_hood dominant): light reaches the deck through the lid once and leaves through it again, so the deck is attenuated by T^2 of the smoked acrylic",
+   "light": "either make the LID read (its top surface as a mirror: a window or bright wall in the lid's family of angles, as in s06), or get the key INTO the box (the sun beam raking the deck through the lid)",
+   "placement": "lid surface: as R1_void_top (mirror of the camera about the lid plane). Interior: a source above and behind the lid, outside the lid's own reflection family so it does not glare",
+   "size": "lid reflection: window-sized (>= the lid's projected depth, s >= L (D_cam + d_s)/D_cam)",
+   "ratio": "[D] T^2 costs 2*log2(1/T) stops (T 0.3 -> 3.5 stops): the deck needs the direct sun, not a fill, to read through the lid; otherwise let the lid's reflection carry the frame",
+   "cct": "sun / window as in the state",
+   "motivation_in_loft": "the west window: raise sun_el within the state or rotate sun_az (240-305 deg) so the beam falls on the deck; tilt the camera so the window lands in the lid",
+   "avoid": "a fill aimed through the lid from the camera side (its reflection in the lid blocks the view)"
+  },
+  {
+   "key": "R1_void_top",
+   "symptom": "void on top faces (deck, plinth top, top-down shots); void_top > void_vert",
+   "light": "overhead soft / window in the family of angles (the car-studio 'the reflection is the lighting')",
+   "placement": "mirror of the camera about the top plane: azimuth = camera az + 180 deg, elevation = camera elevation, beyond the product; for top-down cameras (el >= 60 deg) the mirror ray points at the ceiling",
+   "size": "s >= L_top (D_cam + d_s) / D_cam; a window pane, a sunlit ceiling area or a lamp shade (0.3-0.5 m) at >= 5 deg",
+   "ratio": "as R1_vertical: the reflected surface ~ key-lit white for L* 18-28 on the lacquer; less if the frame's beat is dark",
+   "cct": "window/sky 6500-12000 K by day (cool rim on warm sun), sun-lit ceiling = sun CCT, dusk 2700 K lamp",
+   "motivation_in_loft": "for cameras on the room side, tilt/raise so the west window or the sky sits in the top's mirror ray; for top-down shots the loft ceiling must hold something bright: the sun beam's bounce on the ceiling, the arc lamp's shade (-1.2, 0.7, 1.62 m), a pendant",
+   "avoid": "a softbox-shaped rectangle in the reflection with no object in the room that could be it"
+  },
+  {
+   "key": "R2_merges",
+   "symptom": "outline lost against a background of the same value (sep_frac < 0.20)",
+   "light": "rim / edge / kicker from behind, or a background light (lift what is behind the outline)",
+   "placement": "rim: azimuth 135-180 deg from the camera, elevation 30-60 deg above the edge; kicker: 110-150 deg, near edge height; the source must sit in the EDGE's family of angles (grazing), so a strip behind and beside, aimed back toward the lens",
+   "size": "strip: width subtending 2-6 deg (>= 5 deg preferred by the realism rule, or >= 16-40 mm at product distance), length >= the edge's projected length; a hard, narrow edge line",
+   "ratio": "for dark subjects the rim sits 1-2 stops OVER the key's incident level at the edge (portrait hair-light guidance); target the edge highlight at L* 50-80 on the lacquer; never equal to the key",
+   "cct": "day: the sun/window (3700 -> 2000 K); dusk: the sky glow through the window (cool) or a 2700 K practical behind",
+   "motivation_in_loft": "the west window is BEHIND the product for room-side cameras: it is the natural rim. Move sun_az within 240-305 deg, raise/lower the camera, or let a sunlit mullion edge sit on the outline's mirror ray. Background: the sunlit brick wall, a 2700 K lamp pool on the wall behind, neighbours' windows at dusk.",
+   "avoid": "rims that leak onto the credenza and lift the floor (elements.md); a rim with no window or lamp behind"
+  },
+  {
+   "key": "R1_void_dusk",
+   "symptom": "dusk states (d16/d4/d6): void everywhere, stops_body_set -0.5 to -2",
+   "light": "the practical becomes the key (warm), the window sky is the cool rim, the lamp's own bounce is the fill",
+   "placement": "key 30-60 deg off the camera axis, 20-40 deg above; the SHADE (not the bulb) placed in the family of angles of the top or front face so the lacquer carries a radial gradient",
+   "size": "shade 0.3-0.5 m at 1-2 m = 9-28 deg (the point bulbs, 3-4 cm soft size, subtend ~2 deg: below the 5 deg rule and give a pinpoint)",
+   "ratio": "key:fill 4:1-8:1 (fill 2-3 stops under) for the evening beat; rim 1-2 stops over the key at the edge",
+   "cct": "key 2700 K blackbody; rim = the dusk sky (tint 0.35-0.62, 0.50-0.72, 1.0 -> ~9000-15000 K look)",
+   "motivation_in_loft": "table lamp (default -4.55, 1.78, 0.95 m) and arc lamp (-1.2, 0.7, 1.62 m), 2700 K, already switched on by the dusk states. Cheat their positions per shot (standard film practice), keep them fixed within a shot, and match the in-frame lamp's screen position to the light direction.",
+   "avoid": "raising exposure (no +EV rescues); a cool 'moonlight' fill from nowhere"
+  },
+  {
+   "key": "R1_flat",
+   "symptom": "the product is lit but a big face is one uniform value (face_sep small, low local contrast): reads as a grey slab, loses gloss",
+   "light": "gradient reflection: put the fill source's EDGE (or a dark object) across the face's mirror ray; negative fill on the mirror side",
+   "placement": "shift the source so its falloff or edge crosses the face (a 20-30 cm gap between source and diffuser softens the gradient)",
+   "size": "as large as needed for the face, but not larger than the face's family of angles",
+   "ratio": "gradient across the face 1-2 stops",
+   "cct": "as the motivating object",
+   "motivation_in_loft": "dark furniture (sofa, speaker, bookcase) as the black card; the edge of the sunlit patch as the gradient",
+   "avoid": "a large uniform emitter filling the whole family of angles"
+  },
+  {
+   "key": "R1_wet",
+   "symptom": "black reads grey or wet (body L* > 35 over most of a face, dark_frac ~ 0)",
+   "light": "negative fill",
+   "placement": "black flag or dark object on the face's mirror ray (camera side, above and beside the product)",
+   "size": "cover the face's family of angles",
+   "ratio": "bring the face back to L* 18-28",
+   "cct": "n/a",
+   "motivation_in_loft": "dark furniture, a dark doorway, the unlit side of the room; in Cycles a flag the camera can't see but the product reflects (realism-finishing §7)",
+   "avoid": "lowering exposure to fix one face"
+  },
+  {
+   "key": "R3_subject",
+   "symptom": "the named part has the value of its surroundings (subj_ring_dL < 5 and subj_rms < 5)",
+   "light": "kicker or a small card for that part's family of angles",
+   "placement": "on the part's mirror ray (chrome and domed keys: a small bright object in the room seen in the part)",
+   "size": ">= 5 deg; a white LP sleeve, a sunlit sheet of paper",
+   "ratio": "part highlight L* 50-80",
+   "cct": "as the motivating object",
+   "motivation_in_loft": "an object that is already dressed in the loft, moved into the reflection",
+   "avoid": "light-linking a spot to the part only (realism gatekeeper 1)"
+  }
+ ],
+ "placement_formulas": {
+  "frame": "world z up; v = unit(camera - subject_point); n = world face normal; camera azimuth/elevation as in cand.cam (az about the subject, el above the horizon)",
+  "mirror_ray": "r = 2 (n . v) n - v  (the only directions a gloss face shows to the camera: the family of angles). Source centre = face_point + d_s r.",
+  "top_face_mirror": "az_src = az_cam + 180 deg, el_src = el_cam",
+  "classic_three_point_relative_to_camera_axis": {
+   "key": {
+    "az_off_axis_deg": [
+     30,
+     60
+    ],
+    "typical": 45,
+    "el_deg": [
+     30,
+     45
+    ]
+   },
+   "fill": {
+    "az_off_axis_deg": [
+     0,
+     30
+    ],
+    "side": "on the lens axis (no second shadow) or opposite the key",
+    "el_deg": "<= key"
+   },
+   "back_rim": {
+    "az_off_axis_deg": [
+     135,
+     180
+    ],
+    "el_deg": [
+     30,
+     60
+    ]
+   },
+   "kicker": {
+    "az_off_axis_deg": [
+     110,
+     150
+    ],
+    "el_deg": [
+     0,
+     30
+    ]
+   },
+   "short_side_key": "key on the far side of the subject (lit side turned away): more depth; the loft's window-behind geometry is this by default"
+  },
+  "distance": {
+   "d_s": "1-3 x subject size D for soft wrap and gentle falloff; soft sources obey inverse square beyond ~1-2 x their diagonal",
+   "falloff_across_subject_stops": "2 * log2((d_s + D) / d_s)",
+   "background_drop_stops": "2 * log2(d_bg / d_subject) from a small source"
+  },
+  "size": {
+   "from_angle": "s = 2 d_s tan(theta / 2)",
+   "min_angle_deg": 5,
+   "soft_angle_deg": 28,
+   "strip_width_mm": "max(16, 0.09 d_s) (realism-finishing §2.3)",
+   "fill_reflection": "s >= L_face (D_cam + d_s) / D_cam"
+  },
+  "power": {
+   "sun_irradiance": "E_key = sun_W * cos(i)  [Blender sun strength is W/m^2; states: s15 62, s75 45, s5 35, s33 26, s2 18, s05 8]",
+   "cycles_area_disk_normalized": "E(d) = P / (pi (R^2 + d^2)); d >> R: P / (pi d^2)",
+   "cycles_point_sphere": "E(d) = P / (4 pi d^2)",
+   "fill_power_for_ratio": "P = rho * E_key * pi * (R^2 + d^2),  rho = E_fill / E_key",
+   "rho_by_regime": {
+    "daylight_normal_key": [
+     0.25,
+     0.5
+    ],
+    "cinematic": [
+     0.25,
+     0.45
+    ],
+    "evening_low_key": [
+     0.125,
+     0.25
+    ],
+    "rim_over_key_at_edge": [
+     2.0,
+     4.0
+    ]
+   },
+   "reflection_rule": "gloss face luminance = F * L_source (F ~0.04 normal, ~0.09 at 60 deg, n 1.5). For face L* 18-28, L_source ~ key-lit white (0.8 E_key / pi). Size and place the SOURCE'S LUMINANCE, not its illuminance on the product.",
+   "cycles_emission_plane_equivalent": "Strength S (radiance) == normalized area light of the same area at P = pi A S",
+   "check": "never rebalance on the product's p90 glossy pixel (realism-finishing §2); read the lightgroup ratio E_fill/E_key on a grey card at the product"
+  },
+  "stops_and_ratios": "key:fill 2:1 = 1 stop, 4:1 = 2 stops, 8:1 = 3 stops (plain key:fill; ASC (key+fill):fill gives 3:1 for a 1-stop difference, so always state the convention)"
+ },
+ "loft_sources": {
+  "key_sun": {
+   "where": "west window (+y); the deck at about (-2.975, 3.905, 0.66) m sits under it",
+   "states": {
+    "s15": [
+     15.0,
+     62,
+     3700
+    ],
+    "s75": [
+     7.5,
+     45,
+     3050
+    ],
+    "s5": [
+     5.0,
+     35,
+     2750
+    ],
+    "s33": [
+     3.3,
+     26,
+     2500
+    ],
+    "s2": [
+     2.0,
+     18,
+     2300
+    ],
+    "s05": [
+     0.5,
+     8,
+     2000
+    ]
+   },
+   "fields": "[el_deg, sun_W W/m^2, K]",
+   "role": "3/4-back or back key for room-side cameras (a 'short-side' key by construction)"
+  },
+  "sky_window": {
+   "strength": "s15 34 -> s05 7.5; dusk d16 8, d4 6, d6 4 (tinted blue)",
+   "role": "rim and top reflection from behind; the lid's window reflection"
+  },
+  "room_bounce": {
+   "role": "fill: sunlit floor/wall patches on the camera side (real geometry lit by the sun)"
+  },
+  "practicals": {
+   "arc_bulb": "(-1.2, 0.7, 1.62) m, 60 W x lamps, 2700 K, soft 4 cm",
+   "table_bulb": "(-4.55, 1.78, 0.95) m default, 45 W x lamps, 2700 K, soft 3 cm",
+   "role": "dusk key/fill; their SHADES must be what the lacquer reflects"
+  },
+  "neighbours": "emissive windows across the street at dusk: background separation"
+ },
+ "realism_constraints": [
+  "Every added light names its object in the loft (window, sunlit patch, wall, card, lamp shade) and has that object's size, shape and colour in the reflection.",
+  "Shadows from an added light must agree with the key's direction or be too soft to read (bounce fills subtend >= 28 deg).",
+  "CCT per motivation: sun 3700 -> 2000 K by state, sky/window 6500-15000 K, practicals 2700 K blackbody; a bounce takes the colour of the surface it bounces from.",
+  "No product-only light linking without a physical reason; if linked, add the set-only twin at 25-30 % (realism gatekeeper 1). An added fill that lights the product must also light the surface it stands on.",
+  "The room stays at 0.5-2 % of the key on the product (world/key lightgroup ratio); sources >= 5 deg; practicals reflect and spill.",
+  "Hide a light from camera only if it would be out of frame anyway; never hide it from glossy/specular rays (a light that is missing from reflections is the most visible cheat on product surfaces).",
+  "Negative fill is realism too: a black face that reads grey needs a dark object on its mirror ray, not less exposure.",
+  "One change per failing rule; re-measure; no +EV rescues."
+ ],
+ "engines": {
+  "cycles": {
+   "area_light": "Power in W with Normalize on (default): radiance L = P/(pi A). Shapes square/rect/disk/ellipse. Spread = gridded softbox (power-preserving). Temperature (4.5+) luminance-normalised.",
+   "emissive_mesh": "Emission Strength = radiance, both faces; Emission Sampling = Front for one-sided cards (less noise)",
+   "visibility": "Object > Visibility > Ray Visibility: Camera off, Glossy ON for an out-of-frame source",
+   "linking": "Light linking (4.0+): receiver + blocker collections (shadow linking)",
+   "passes": "one lightgroup per role: key, world, fill, rim, practical (groups sum to the beauty)",
+   "portal": "area light Portal on the window opening: sampling only, emits nothing",
+   "sun": "angle 0.526 deg, strength W/m^2"
+  },
+  "octane": {
+   "emitters": "Blackbody emission: Temperature, Power, Normalize ON (luminance constant across K; with Normalize Power ~ lumens), Surface Brightness OFF to keep power independent of size, Double Sided off for cards, Light Pass ID per role",
+   "analytic_lights": "Quad / Disk / Sphere / Tube: less noise than mesh emitters; Spread Angle + Normalize Power",
+   "visibility": "Object Layer Camera Visibility off + emission 'Visible on Specular' ON = invisible to camera, present in reflections",
+   "linking": "20 Light IDs + object Light Pass Mask; no shadow-only linking found",
+   "portal": "Portal material over every window opening, normals inward; not with the Direct Light kernel",
+   "tone": "Imager response curve off / neutral, linear EXR"
+  },
+  "matching": [
+   "No published Cycles W -> Octane power factor. Calibrate once: 1 m^2 emitter at 5000 K, 18 % card at 2 m, linear EXRs, no response curve; solve the factor; re-check at 2700 K and 6500 K and a second size.",
+   "'Normalize' means total power vs size in Cycles and luminance vs temperature in Octane.",
+   "Octane Surface Brightness carries an extra 7/pi (~2.23) factor (OTOY forum): keep it off.",
+   "Octane is spectral, Cycles RGB-fit blackbody: check a white card at 2000-2700 K.",
+   "Map Cycles lightgroups 1:1 to Octane Light Pass IDs so the Resolve relight is the same in both."
+  ]
+ }
+}

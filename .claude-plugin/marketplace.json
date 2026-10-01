@@ -1,0 +1,17 @@
+{
+  "name": "3d-productmotion",
+  "owner": {
+    "name": "Nick Conn"
+  },
+  "metadata": {
+    "description": "The /3d-product skill: hardware product films from a prompt and a reference, directed from the command line.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "3d-product",
+      "source": "./",
+      "description": "A one-shot pipeline for hardware product films: a prompt and a reference to a finished, graded film, with Claude Code driving Blender, Octane or Cycles, and DaVinci Resolve."
+    }
+  ]
+}

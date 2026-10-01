@@ -1,0 +1,24 @@
+{
+  "name": "3d-product",
+  "version": "1.0.0",
+  "description": "A one-shot pipeline for hardware product films: a prompt and a reference (a design patent, photos) to a finished, graded film, with Claude Code driving Blender, Octane or Cycles, and DaVinci Resolve.",
+  "author": {
+    "name": "Nick Conn"
+  },
+  "homepage": "https://github.com/nicceasy/3d-productmotion",
+  "repository": "https://github.com/nicceasy/3d-productmotion",
+  "license": "MIT",
+  "keywords": [
+    "3d",
+    "product-film",
+    "product-rendering",
+    "blender",
+    "octane",
+    "cycles",
+    "davinci-resolve",
+    "animation",
+    "industrial-design",
+    "motion-design"
+  ],
+  "skills": "./skills"
+}

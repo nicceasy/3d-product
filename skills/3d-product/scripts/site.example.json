@@ -1,0 +1,20 @@
+{
+ "_comment": "Copy to ~/.config/3d-product/site.json and edit. Nodes are ssh aliases (from ~/.ssh/config) of render nodes; shares map a local mount to each node's path for the same storage; python is an interpreter with numpy + OpenEXR for the look chain. Format notes: references/site-profile-example.md.",
+ "nodes": [
+  {
+   "name": "node1",
+   "ssh": "node1",
+   "role": "render"
+  }
+ ],
+ "shares": [
+  {
+   "name": "Render",
+   "local": "/Volumes/Render",
+   "remote": {
+    "node1": "E:/Render"
+   }
+  }
+ ],
+ "python": "~/venvs/3d-product/bin/python"
+}
