@@ -64,6 +64,20 @@ GPUs. A new site runs the probe and gets its own profile; nothing in the stages 
 - A synced review folder the user can open on a phone (e.g. iCloud Drive), one flat folder per review section.
 - FigJam boards per project (`figjam-board.md`).
 
+## Measure and gate
+Run the probe with the brief, before any plan carries a budget: every machine-time budget later is tests × seconds,
+and the seconds come from here. The card budget is set here too, so every 3D stage can check its weight against it
+instead of meeting the card's limit at production.
+
+| Measure | How | Pass |
+|---|---|---|
+| Roles | `probe_setup.py` → `setup.json` | every role filled or marked missing |
+| Seconds per host and rung | `--bench` times one rung-1 clay frame on the workstation (640×360, 128 spp). Time the other rungs the plan uses once by hand: a rung-2 preview (960×540) on each preview host, one final-engine frame on each render node. Add each to the setup notes as {host, rung, engine, res, spp, seconds} | a measured number for every host and rung a budget will use |
+| Card budget | the smallest render card's memory (on unified memory, what the engine may use) → `budget.json` in the study; format and per-stage split in `scene-optimisation.md` §0 | written before stage 2 builds anything |
+| Project constraints | the user's rules for this project in the setup notes ("renders on the workstation only"); a node busy with another project's queue counts as missing | recorded, and the recommendation re-read with them |
+
+**Sheet:** the five-line setup summary, the seconds table and the card budget.
+
 ## setup.json (what `probe_setup.py` writes)
 ```
 { "probed_at", "probe_s", "site_config",

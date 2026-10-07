@@ -27,22 +27,34 @@ on and silently drops the rest of the run.
 5. **All GPUs present:** on a loss, reboot the node where the user pre-authorised it (at most ~3 times, ≥ 15 min
    apart), then alert and render on what is left.
 6. **The render server runs** → start it in the right session.
-7. **The driver:** alive → the hang check (no new frame for ~10 min, after a ~15 min grace from the launch for scene
+7. **Drift** (the optional `drift_check` hook, read on the node from the frames' metadata or the driver's per-frame
+   log): a frame slower than ~1.5× its shot's estimate (judgement; an absolute limit the user gives also works), a
+   settings-spec hash that differs from the shot's launch hash, a new frame missing pass layers. Each kind alerts once
+   per shot; the run continues, and the morning report explains every alert.
+8. **The driver:** alive → the hang check (no new frame for ~10 min, after a ~15 min grace from the launch for scene
    load and the cold frame) → kill the verified PIDs (image name and command line checked; the kill verified), restart
    the server, and let the next pass relaunch. Not alive → delete zero-byte frames, **relaunch only the incomplete
    shots with skip-existing**. All frames on disk → notify, run the done hook, exit 0. A relaunch cap (~12) → alert and
    exit 1 rather than loop forever.
 - **Count frames and their ages on the node**, never through a network mount: a mount's cache can hide new files or
   report a live run as hung for many minutes.
+- **Count with a script file on the node** (`count.ps1 -Dir …`, `count.sh …`), never an inline one-liner passed through
+  ssh: one shell layer ate a PowerShell `$_`, the count read 0 forever, every job "hung" every 10 min, and a shot was
+  marked done at 29 %. A new count is proven against a known folder before a supervisor uses it.
+- **The hang clock starts when the job starts**, not when the supervisor queues it: a launcher still waiting on the
+  one-job lock is not a hang (a supervisor once killed its own queued job).
+- **One render job at a time per server, by lock:** count running driver processes by command line, matching every
+  driver version in use (a version bump once made a running job invisible to the lock). Stacked jobs corrupt each other.
 - **A hung server is not a hung client.** GPUs at 0 % while clients are refused (seen after a GPU driver reset with
   every card still present) means the server is dead: restart the server; relaunching the client changes nothing.
 
 ## 3. The chain after the frames
 - **A finishing chain per shot, in film order:** it waits until the shot's frames are complete (counted on the node),
-  then finishes that shot (denoise → look → encodes), so finished shots exist long before the last frame renders.
+  then jump-scans that shot (§8) and finishes it (the film's chosen finish → encodes; a denoise only if the user chose
+  one), so finished shots exist long before the last frame renders.
 - **The conform runs automatically after the chain:** the picture conform writes a DONE line to its log; the sound
-  conform waits for that line (`grep` in a loop), then conforms the approved mix (with the end hold of
-  `sound-design.md` §11) and notifies.
+  conform waits for that line (`grep` in a loop), then conforms the approved mix and notifies. The final shot is
+  rendered long enough to play through the end hold (`finishing.md` §5).
 - Each step is a versioned script that refuses to overwrite its outputs; markers are lines in logs, read by the next
   step.
 
@@ -65,3 +77,80 @@ on and silently drops the rest of the run.
 - Kill by verified PID, never by a pattern that can match the shell running it (`traps.md`).
 - Recovery actions on the render node (kills, server restarts, reboots) follow the site's standing policy
   (`site-profile-example.md`); on the workstation, ask.
+
+## 7. Pausing a queue, and an agent check-in when the user asks
+- **Pausing for a test:** stop each supervisor by its own PID (a list of PIDs in one variable fails in zsh), then any
+  orphaned launcher still waiting on the lock, then the node job; run the test; restart one supervisor (skip-existing
+  resumes). List processes before and after — two supervisors race the moment the node frees up.
+- **When the user asks the agent to watch overnight** (the default stays: the supervisor alone, no credits), add a
+  check-in loop beside the supervisor: it polls every ~5 min and exits (waking the agent) on a stall longer than the
+  supervisor's own restart, the node unreachable for three polls, the supervisor gone, the queue done, or every ~100 min.
+  Each wake: read the reason, act, jump-scan any finished shot, re-arm. Never a second supervisor.
+
+## 8. Gates around a production run (stage 11)
+The supervisor keeps a run alive; it can't tell whether the frames are right. These checks can.
+
+**The gate re-opens.** Every shot whose master, light rig, kernel spec or sampling changed after its FKL approval goes
+back through at least its key-frame level check before its sequence runs.
+- Why: an optimised whole-film relaunch once skipped it. One shot came out 5.8× too bright (a sampling aid that let the
+  sun through an open glass cover), and it had no light passes to fix it in comp.
+
+**The key-frame level check, before every sequence:**
+1. Finish the new key frame and the approved one through the same look, grain off.
+2. Report:
+   - the mean and median level ratio;
+   - the level ratio on the product's mask;
+   - the mid-tone (L* 15–85) colour difference;
+   - a side-by-side sheet.
+3. **Pass:** level within ±5 % and mid-tone colour within ~2 ΔE, unless the change was asked for. These thresholds are
+   judgement: the measured passes sat within 3 %, and the fails were +19 % and 5.8×.
+4. A fail stops that shot's sequence until its cause is found.
+
+**The launch and the first frame:**
+- The launch command carries the shot's complete settings spec (`cycles-production.md` §9.4) and its pass list. Read
+  both in the command itself, not from memory.
+- Open the first frame of every run before leaving it alone, and check:
+  - its layers: beauty, light passes, data, product-part IDs;
+  - its spec hash and sample count.
+
+**Light passes with every final** (`cycles-production.md` §9.5): per-light direct and indirect, sun, sky, emitters,
+reflection and refraction, and Z, normals and IDs. A light that comes out wrong in one shot is then a gain in the comp,
+not a re-render. Measured cost on 4 GPUs: ~+10 % per frame, ~180 MB per 1080p frame for 15 passes.
+
+**The jump scan, on every finished shot:**
+1. Compute the consecutive-frame difference at 1/8 resolution (mean absolute difference, relative to the frame mean).
+2. Flag any frame whose step is more than ~3× the shot's median step (judgement). On moving shots the normal relative
+   step measured 0.10–0.15.
+3. Flag any step that is exactly zero: a stale or duplicated buffer. Measured: stale frames were byte-identical to
+   another frame.
+4. Explain each flag (a lamp switching on is a real step). Otherwise read the frame's metadata (shot, frame, spec hash,
+   sample count) against the pack to find the cause: a stacked job, the wrong frame, or a restart that changed a
+   setting.
+
+**The resumed-session scan, on every shot that was restarted** (a hang, a crash, a pause):
+1. Find each resume point from the frame files' write times: a gap well above the shot's normal frame interval (or
+   frames written out of order). The frame after the gap is the first frame of a new render session.
+2. Score each such frame for a single-frame pop: the mean of |frame − ½(previous + next)| on a blurred log-luminance
+   image, against the same score for its ±5 neighbours. A whole-frame mean or a step scan misses it; this one doesn't.
+3. Re-render every popping first frame in a new session with **one throwaway pre-roll frame** before it (render f−1
+   and f, keep only f), into a new versioned folder, then merge a full copy of the sequence for the comp or the edit.
+- Why: the first frame of a render session is not the same render as the frames after it (measured: re-rendering a
+  mid-session frame as a session's first frame changed it by about the noise level; the frames after it matched the
+  original to ~0.02 %). On a close-up of a spinning part this read as the part "popping" for one frame at each
+  restart, and the user found it in the edit. Shots whose restart frames scored no higher than their neighbours were
+  left alone.
+- Prevention: a supervisor that resumes a shot renders one pre-roll frame first.
+
+## 9. Measure and gate (stage 11)
+| Check | Pass |
+|---|---|
+| FKL in the final engine | main has checked every frame against the approved previews; the user's "go" per shot or act |
+| Key-frame level check (and every re-opened gate) | level ±5 %, mid-tone colour ≤ ~2 ΔE against the approved frame, or the change was asked for |
+| First frame of every run | every layer present; the spec hash is the shot's; the sample count plausible |
+| During the run | no unexplained drift alert; measured seconds per frame within ~1.5× the stage 10 estimate |
+| Frame counts | complete per shot, counted on the node; zero-byte frames and frames corrupted by an interruption re-rendered |
+| Jump scan | every step above ~3× the median explained; no zero steps |
+| Resumed sessions | every restart's first frame scored for a single-frame pop; poppers re-rendered with a pre-roll frame |
+| Light passes | present in every final frame |
+
+**Show:** FKL in the final engine beside the approved previews, the level-check table, then each shot as it lands.

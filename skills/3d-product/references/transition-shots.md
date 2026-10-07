@@ -68,8 +68,10 @@ Related: `lighting.md` §6 (reflections and flags) and §9 (light tells time), `
    - struct = std of log(1 + 50·glossy) inside the mask (a flat sheen scores low);
    - rel = mean glossy / mean frame (the reflection's weight against everything else);
    - score = √min(frac, 0.6) · share · (0.4 + struct) · min(rel, 2).
-6. **A contact sheet per slot** of the top 30–40 with their numbers. The score finds candidates; **pick by eye**, for
-   an idea you can say in one line.
+6. **A contact sheet per slot** of the top 30–40 with their numbers. Run the composition analysis on each candidate
+   (`composition-analysis.md`) and the cut checks against both neighbours' cut frames
+   (`scripts/comp_analysis.py cuts`); print the results on the sheet. The score and the analysis find candidates;
+   **pick by eye**, for an idea you can say in one line.
 7. **Write the options as data** (id, slot, subject, camera az/el/W/f/N/placement, the one-line idea, the move) and hand
    them to the final-engine agent as a JSON with each KEY's world camera.
 8. Show the grey option sheet, then the lit KEY sheet. ★ The user picks; the picks are re-lit in their exact slot
@@ -106,8 +108,16 @@ of these is true:
 4. otherwise, choose a different family whose state matches.
 Write which one applies next to the option; never ship a transition that silently contradicts its neighbours.
 
-## 8 · Gate and show
-- Gate: each slot's shot passes the similarity rule against both neighbours, moves if a neighbour is still, has no
-  roll, keeps the story state, and its lit KEY shows the slot's light state through a reflection the user can name.
+## 8 · Measure, gate and show
+- Gate, measured from the cameras and the story data and printed per slot:
+  - the similarity rule against both neighbours at the cut (view directions ≥ 30° apart, or frame widths ≥ 1.5×
+    apart; `scripts/motion_qa.py cuts`);
+  - it moves if a neighbour is still; no roll; a simple move under its speed ceiling (`camera-motion.md` §7);
+  - the story state equal to the neighbours' at that edit time (§7);
+  - the composition analysis passes on its FIRST, KEY, LAST and cut frames (`composition-analysis.md`);
+  - its lit KEY shows the slot's light state through a reflection the user can name (the score's share and rel terms
+    reported).
+- Once placed, a transition is a shot like any other: the stage-9 re-gate covers it after any cut change
+  (`camera-motion.md` §7).
 - Show: per round, the grey option sheet (with ideas), then the lit KEY sheet; after the pick, the KEY strip of the
   whole film with the transitions in place (`finishing.md` §4).

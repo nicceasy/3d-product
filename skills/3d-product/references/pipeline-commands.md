@@ -31,17 +31,22 @@ Contents: 1 Principles · 2 The tool set · 3 The shot spec (schema) · 4 Comman
 | **Shot / camera rig** | shot table (camera, lens, stop, focus target, light state, per-shot hides) → keyed cameras with aim targets | FKL frames, animatics and finals read the same table |
 | **Light-state rig** | named light states as JSON (sun direction, sky, practicals, calibrated powers) applied by name | light continuity across shots and engines |
 | **Audits** | ray-cast visibility, BVH overlap, focus/CoC gate, reads gates, material audit sheets | the gates of each stage run as code |
-| **Render driver** | per engine: frames or chunks, kept-alive sessions, placeholders, overwrite off, **versioned animation packs** | reproducible sequences and cheap resumes |
+| **Render driver** | per engine: frames or chunks, kept-alive sessions, placeholders, overwrite off, **versioned animation packs**; a reset + one complete settings spec per shot, read back, its hash in every frame's metadata | reproducible sequences and cheap resumes; no lingering settings (`cycles-production.md` §9.4) |
 | **Converter** | Cycles master → the other engine's master, with the known fixes (`octane-production.md` §4) | one engine-agnostic source |
-| **Finish chain** | lens optics per light group → bounded grade solve → look → grain → delivery, with a numpy twin of every Resolve step | the grade is checkable against a twin |
-| **Review publishers** | contact sheets, the review folder, FigJam section builders (`scripts/figjam_section_builder.js`) | the user reviews every stage in the same places |
+| **Finish chain** | lens optics per light group → the film's one finish (the gentle look with one-gradient trims, or film emulation with lab timing) → grain → delivery, with a numpy twin of every Resolve step | the grade is checkable against a twin (`finishing.md`) |
+| **Review publishers** | review videos to the synced review folder; stills and sheets to FigJam section builders (`scripts/figjam_section_builder.js`) | the user reviews every stage in the same places (`fast-feedback.md`) |
 | **Setup probe** | hardware, engines and apps → `setup.json` (`scripts/probe_setup.py`) | picks the path before anything is built |
-| **Render supervisor** | a plain-shell loop that owns an unattended run (`scripts/render_supervisor_template.sh` + a per-site hooks file, `scripts/supervisor_hooks.example.sh`); finishing chains and conforms that wait on DONE markers | renders finish overnight without an agent or credits (`render-supervision.md`) |
+| **Render supervisor** | a plain-shell loop that owns an unattended run (`scripts/render_supervisor_template.sh` + a per-site hooks file, `scripts/supervisor_hooks.example.sh`; an optional `drift_check` hook alerts on slow frames, a changed spec hash or missing pass layers); finishing chains and conforms that wait on DONE markers | renders finish overnight without an agent or credits (`render-supervision.md`) |
 | **Operator layer** | per-frame cameras → the same cameras with band-limited operator imperfections, KEY exact, metrics and gates | approved camera feel, reproducible by seed (`camera-motion.md` §6) |
 | **Contact QA** | a saved shot file → sub-frame checks of a part riding another | correct mechanism animation in close-ups (`greybox-animation.md`) |
 | **Macro focus** | f, field, named depths → f-number and focus offset with diffraction, engine values (`scripts/macro_focus.py`) | sharp deep subjects at macro magnification (`fkl-frames.md` §2b) |
 | **Label builder + visibility** | reference measurements → re-set type → print maps (albedo, foil, roughness, normal); per-shot ray visibility of printed faces | labels that read as printed and are confirmed in every shot (`graphics-labels.md`) |
-| **Sound engine** | per-frame channels → spotting sheet → components (beds, music, foley) → leveler → master + stems + loudness report (`scripts/loudness_profile.py`) → conform | sound built from the picture's own data, measured (`sound-design.md`) |
+| **Sound engine** | per-frame channels → spotting sheet → components (beds, music, foley) → leveler → master + stems + loudness report → conform | sound built from the picture's own data, measured (`sound-design.md`) |
+| **Scene weight** (`scripts/scene_weight.py`) | read-only, seconds: triangles and the heaviest objects, objects, shader programs, procedural and script nodes, images and their GPU bytes, mesh emitters (and those in light sampling), volumes, a VRAM estimate; PASS / FAIL per budget line | the per-stage weight record at the end of stages 2, 3, 4, 5 and at 10 (`scene-optimisation.md` §0.2) |
+| **Budget** (`scripts/budget.example.json`) | the study's `budget.json`, written at stage 0.5: card and VRAM share, weight lines, hero collections, seconds per frame per light state, machine hours, the noise target | every 3D stage builds to it; stage 10 verifies against it (`scene-optimisation.md` §0.1) |
+| **Composition analysis** (`scripts/comp_analysis.py`) | `frame`: one frame's composition measures; `sameness`: how alike candidate frames or neighbouring shots are; `cuts`: the OUT → IN step across every cut | the stage 7–8 composition gates as numbers |
+| **Motion QA** (`scripts/motion_qa.py`) | reads the per-frame edit file: `shots` (speeds, image flow, constant increments, KEY exactness), `compare` (operator layer vs base cameras in px), `cuts` (angle and scale across each cut), `regate` (FIRST/LAST shift vs the approved stills; camera proof that packs carry the approved cameras) | the stage-9 motion gate as numbers (`camera-motion.md` §7) |
+| **Loudness profile** (`scripts/loudness_profile.py`) | integrated loudness, true peak, loudness range, short-term and momentary curves with the film's marks, steps (gated), entry ramps (gated), dips, the short-term range (reported); exit code per gate | the sound gates read numbers, not impressions (`sound-design.md`) |
 
 ## 3. The shot spec (schema)
 The harness reads one JSON per shot or still. Keep it flat and explicit; defaults live in the harness.
@@ -81,7 +86,8 @@ $PY <model builder> <out_dir> [--pose ...]                         # model → S
 blender -b --factory-startup -P <harness> -- <spec.json> [...]     # one still
 $PY <batch tool> <base.json> <out_dir> 'a={"camera":{"el":18}}' 'b={"rig":"dark"}' --sheet <sheet.jpg>
 blender -b --factory-startup -P <shot runner> -- previs|board|final <shot ...>   # shots from the shot table
-$PY <finish chain> <frames>                                        # optics → solve → look → delivery
+blender -b <scene>.blend --factory-startup --python scripts/scene_weight.py -- --budget <study>/budget.json --out <weight.json>
+$PY <finish chain> <frames>                                        # optics → look → grain → delivery
 REMOTE=user@node ./run.sh <label>                                  # the same job on a render node (site profile)
 ```
 Look-dev at 64 spp on a laptop-class GPU (seconds); finals at 256–1024+ spp on a render node. Hardware, paths and the

@@ -31,9 +31,9 @@ see"), quick composition review rounds, fits that take seconds each.
    an agent iterating unseen on a metric through seven versions kept the user waiting ~40 min ("This is taking way too
    long").
 7. **Don't turn a simple step into a study.** A step the user asks for plainly gets the one standard method, done in
-   minutes (OIDN on the frames, then move on). Options belong only where the user asked for options. Example, the
-   user: "Single frame denoise passes should not take 45 minutes. I just want a simple denoise filter applied
-   before we do the rest of the camera fx and grain."
+   minutes, then move on. Options belong only where the user asked for options. Example, the author: "Single frame
+   denoise passes should not take 45 minutes. I just want a simple denoise filter applied before we do the rest of
+   the camera fx and grain."
 
 ## Ladders (climb when the rung below has answered)
 | Axis | Rung 1 (minutes) | Rung 2 | Rung 3 (confirm / deliver) |
@@ -70,15 +70,29 @@ Every brief states:
 Checkpoints ship full frames as well as sheets: 1920×1080 PNG per variant, with no captions and grain baked in, at
 `<stream>/review/<checkpoint>/<shot>/NN_<variant>.png`, plus short clips wherever motion matters.
 
-The lead publishes each section with the project's review publisher to one shallow folder in a synced review root
-(iCloud Drive or similar, so the user can review on a phone): `<review root>/<NN>_Review_<Section>/`. A section folder
-holds, flat:
-- `00_contact_sheet.jpg`: every frame at full resolution;
-- `<shot>_<NN>_<variant>.jpg` at JPEG q95, 4:4:4. q90 loses ~20 % of the grain;
-- the MP4 clips.
+**Where each checkpoint goes (every stage, not only delivery):**
+- **The review folder holds review videos only.** One synced review root (iCloud Drive or similar, so the user can
+  review on a phone), one folder per review section, `<review root>/<NN>_<Section>/`, flat, no subfolders. Each holds the full-resolution MP4 plus a phone copy if
+  one is needed (link the user to the full-resolution file).
+- **Stills, contact sheets and documents stay local** and go on the board (`figjam-board.md`). For a JPEG anywhere,
+  use q95 4:4:4: q90 loses ~20 % of the grain.
+- **Superseded sections move to a local archive, never deleted.** When a shot is re-rendered, its older review section
+  leaves the review folder for the archive. Ask before cleaning up older sections retroactively.
+- **Every deliverable is reported with its full local path in its own code block,** plus its review folder, so the
+  user can paste it into a file browser.
 
-The rule: one review root, shallow, JPG + MP4, and one full-res contact sheet per review section.
+The rule: one review root, shallow, review videos only.
 
 Research agents write their TL;DR and decisions first and deliver the detail after. The lead reads each checkpoint as
 it lands and puts it in front of the user (SendUserFile or the board). The lead doesn't wait for the final report.
 
+## Measure and gate: every checkpoint, and delivery (stage 13)
+| Check | Pass |
+|---|---|
+| The board | every still and sheet of the checkpoint on the board at full resolution with a notes box (`figjam-board.md`) |
+| Review folder | every review video in its section folder; nothing else there; superseded sections moved to the local archive |
+| Notes and stamps | read back (`get_figjam`, stamps mapped to tiles), quoted verbatim into requirements |
+| Delivery encodes | ProRes 422 HQ + H.264 ≥ 40–50 Mb/s, BT.709 tags read back with `ffprobe`; grain σ re-measured after the encode |
+| Lengths | the picture's frame count = the cut plus the end hold; the audio stream's length = the picture's |
+| Resolve | one project per film with a bin per act (stills: one project per shot), the `.drp` exported |
+| Paths | every deliverable reported with its full local path in its own code block, plus its review folder |

@@ -63,7 +63,9 @@ The cheapest step in a glass project. Physics can change a product before a sing
 - **Bounce budget:** bounces ≥ glass surfaces the ray crosses for the image (12 carries a 10-surface lens); **2–3× the
   surfaces for the internal reflections** that give a lens its layered depth (the extra bounces change well under 1 %
   of pixels, all inside the glass). A high default (64) costs nothing where unused.
-- **Lint every glass part:** no non-manifold edges; signed volume positive (closed, outward normals).
+- **Lint every glass part:** no non-manifold edges; signed volume positive (closed, outward normals). Orient a closed
+  glass mesh's faces by ray parity, not by recalculating normals: measured once, a closed vase with 21 % inward faces
+  fireflied, a normal recalculation fixed none of them and a ray-parity pass fixed them all.
 - Describe the scene as data (lights with Kelvin, gobos, cookies, cards with refraction-target patterns, walls, haze,
   explodes, light groups) so the same spec can rebuild the scene in a second engine (§7).
 
@@ -80,6 +82,18 @@ The cheapest step in a glass project. Physics can change a product before a sing
 
 Common IORs: 1.49 acrylic · 1.52 crown/K9 · 1.585 polycarbonate · 1.78 SF11 · 2.15 cubic zirconia.
 
+**Roughness is a per-state trade.** Render each glass cover in each light state at its closest framing.
+- Mirror-smooth glass in sun flickers: keep roughness ≥ ~0.03 where sun refracts through it.
+- A rough cover over a bright environment (a night window, a sky) turns that source into grain in every pixel behind
+  it (measured once: it held a frame at a 4× higher sample cap until the source was moved out of the cover's view).
+- Fix the source first: rotate the environment or flag the bright area out of the cover's view (`lighting.md` §6).
+  Change the cover's roughness only with the user's OK: the material is the design intent.
+
+**Every glass layer, in every light state.** List each transparent material's layers (a thin pane, a milky or diffuse
+layer and its weight, a mix's input convention) and check each in every state: a 2–5 % milky layer invisible by day
+can carry most of a night pane's light (`lighting.md` §9.3). A layer a state needs differently is a state value, not a
+second master (`lighting.md` §3).
+
 ## 6 · Lighting
 - **Surroundings are the lighting for glass.** Field lighting:
   - dark field: bright rims on black (a big panel hidden by a black patch sized from the camera frustum ×1.08);
@@ -93,7 +107,11 @@ Common IORs: 1.49 acrylic · 1.52 crown/K9 · 1.585 polycarbonate · 1.78 SF11 �
 - **Gobos vs cookies:** a textured spot (gobo) is sharp everywhere and reads as projection. A physical cookie has a
   real penumbra = source size × (cookie→surface ÷ light→cookie): use a small source and a cookie near the product, or
   the pattern vanishes.
-- **Haze:** a Principled Volume box; side-on cameras need anisotropy ~0.25; keep fills out of the volume.
+- **Haze** (opt-in, for a beam the story needs, with its cost measured: `lighting.md` §2): a Principled Volume box;
+  side-on cameras need anisotropy ~0.25; keep fills out of the volume.
+- **Glass sampling aids per state.** Fake or transparent shadows help convergence, but on an open cover in sun they
+  let direct light through as if the glass weren't there. Keep an aid only where a with/without preview agrees within
+  ~3 %, per cover state × light state (`lighting.md` §8).
 - **View transform:** for look-dev, Khronos PBR Neutral keeps gel saturation (AgX pastelises, Standard clips, ACES 2.0
   sits between). For low-key finals use the film curve (`realism-finishing.md`, `finishing.md`) and check saturated
   gels through it: a per-channel shoulder moves bright saturated colour toward yellow/white.

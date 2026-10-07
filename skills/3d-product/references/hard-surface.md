@@ -38,10 +38,30 @@ general; the verdicts come from side-by-side sheets on real hard-surface product
   - Set the camera `clip_start` to 1 mm for macro.
   - Face winding must agree with the custom normals, or Cycles shades the surface as back-facing.
 
+## 2b · Mesh QA on every export
+The tessellation is what renders, so check it on every export, not once by eye. Why: a CAD kernel's apex fan on a
+domed key (45 triangles meeting at the crown, slivers up to ~10⁶:1, the pole's normal 34° off) rendered a half-ring
+highlight on every dome, and nothing caught it before the final film.
+1. **Chord by screen need:** chord ≤ ¼ of the mm per pixel at the part's closest framing in the film. Example: a part
+   100 mm across filling a 1920 px frame is ~0.05 mm/px, so chord ≤ ~0.013 mm. Glass ≤ 0.05 mm whatever the framing:
+   refraction magnifies normal error. Unseen faces may be coarse.
+2. **Exact normals:** export the surface normals as custom normals. Shading-normal error against the exact surface ≤
+   0.5° at p99. A normal error of e° bends a reflection by 2e°.
+3. **Slivers** (aspect > 8): < 5 % on gloss curved faces.
+4. **Poles and apex fans** (dome crowns, cone tips, revolved profiles on their axis): compare each pole vertex's normal
+   with the fitted surface. Where it leans > ~15° [J], re-mesh the cap as rings on the fitted surface with analytic normals,
+   or replace the pole's corner normals with area-weighted face normals.
+5. **Flat-shaded planar faces** ignore custom normals: smooth-shade them on import.
+6. **Confirm** with a strip-light sweep (the zebra tunnel, §2) of the gloss parts at the hero framing.
+
+Measured: halving the deflection (0.02 → 0.01 mm) took a filleted box from 2.8k to 9.5k triangles, with p99 normal
+error 4.0° → 2.1°. Glass at 0.2 mm sawed its refracted rim band, while 0.05 mm matched 0.01 mm, at the same render
+time. Triangles cost memory and sync, not sampling: spend them where the screen needs them.
+
 ## 3 · Representation by part type
 | Part type | Representation | Why / notes |
 |---|---|---|
-| Machined / prismatic: bodies with fins, bosses, threads, knurls, engraving | **build123d B-rep** | OCC fillets ≤ ~1 mm (G1 is right for machining). Run risky fillets in a forked process and clamp the radius. Tessellate ≤ 0.01 mm / 0.1 rad with exact normals. Threads as helicoid meshes in a B-rep insert. Engraving: `Text` then booleans. |
+| Machined / prismatic: bodies with fins, bosses, threads, knurls, engraving | **build123d B-rep** | OCC fillets ≤ ~1 mm (G1 is right for machining). Run risky fillets in a forked process and clamp the radius. Tessellate by screen need with exact normals (§2b). Threads as helicoid meshes in a B-rep insert. Engraving: `Text` then booleans. |
 | Class-A skins: slabs, pebbles, caps | **constructed fair Gn sweeps** or **SDF** with order-n blends | An order-n smooth min/max (an even polynomial kernel in the signed difference) gives true C^n blends. The textbook \|a−b\| smin is only C2 on its centre line. |
 | Three-edge convex corners (class A) | **SDF p-norm box** (rounded box with a p-norm vertex) | Symmetric superellipsoid vertex, G(p−1). Nested pairwise smooth-max makes an asymmetric "Y". |
 | Organic / blended / organic-to-hard: yokes, grips, lattices | **SDF** | Organic body with a G2 smooth min, then a hard max with a plane for a spot face: the machined face cut into the organic form. Lattices (gyroid) fused with a smooth min. |

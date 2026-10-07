@@ -85,19 +85,21 @@ Previews at 960 px show only about ¼ of a 4K starburst tail. That's correct, no
 Shot types: macro razor-DOF detail, low-angle hero, silhouette against an emitter, reflection shot, light-reveal sweep,
 through-glass shot, extreme foreground bokeh framing.
 
-## Film character on finished EXRs: denoise → mist → grain
+## Film character on finished EXRs: mist → grain
 Applied to converged, finished EXRs, after the render and before delivery.
 
-**Chain:** colour-only denoise → lens (optional) → edge softness / mechanical vignette (optional) → halation (optional)
-→ mist → colour look (a frozen, named version) → grain.
+**Chain:** (a denoise only if the user chose one) → lens (optional) → edge softness / mechanical vignette (optional) →
+halation (optional) → mist → colour look (a frozen, named version) → grain.
 
-**Denoise.** OIDN colour-only (Blender's compositor used purely as an image processor, about 1 s/frame), only on noisy
+**Denoise: none by default.** Finals are sampled to the noise target (`cycles-production.md` §9.1). When the user asks
+for one: OIDN colour-only (Blender's compositor used purely as an image processor, about 1 s/frame), only on
 *converged* frames.
-- Measured: render noise from a few codes to ≈ 0.1, with no boil in motion (frame-to-frame change went down).
+- Measured on converged frames: render noise from a few codes to ≈ 0.1, with no boil in motion (frame-to-frame change
+  went down).
 - Flicker blamed on "the denoiser" comes from in-render denoising at low spp, not from a colour-only pass on converged
   frames.
-- An in-render AI denoiser (Octane's) left speckle and blotchy mottling on dark lacquer and dark plastic at 256–512 spp
-  where post OIDN on the raw beauty was clean: post OIDN is the default for both engines (`finishing.md` §1).
+- On under-sampled frames a post denoise left artifacts across a whole film, which was re-rendered without one. An
+  in-render AI denoiser left speckle and blotchy mottling on dark lacquer and dark plastic at 256–512 spp.
 
 **Pro-Mist-like diffusion.** Energy-conserving: a fraction s of all light is scattered into a wide halo.
 - 1/8 is s 0.04; 1/4 is s 0.08.

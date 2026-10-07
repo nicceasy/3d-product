@@ -37,6 +37,11 @@
 #   delete_zero_byte                  delete zero-byte frames (placeholders of an interrupted run)
 #   notify_hook "<msg>"               a custom alert; default: a desktop notification
 #   on_done                           run once when every frame exists (e.g. touch a DONE marker for a chain)
+#   drift_check                       print one line per drift found in the frames on the node, as "<key>: <message>":
+#                                     a frame slower than ~1.5x its shot's estimate, a settings-spec hash that differs
+#                                     from the shot's launch hash, a new frame missing pass layers (read the frames'
+#                                     metadata or the driver's per-frame log ON THE NODE). Each key alerts once, so
+#                                     keep counts and frame numbers after the colon (e.g. "slow <shot>: 12 frames > 1.5x").
 set -u
 
 HOOKS=${1:-}
@@ -108,13 +113,14 @@ if [ "$MODE" = test ]; then
   if have server_ok; then server_ok && echo "server: running" || echo "server: NOT running"; fi
   echo "driver pids: $(driver_pids | tr '\n' ' ')"
   echo "newest frame age: $(newest_frame_age_s) s"
+  if have drift_check; then echo "drift: $(drift_check | tr '\n' ';')"; fi
   W=$(frames_want); H=$(frames_have)
   echo "frames: $(printf '%s\n' "$H" | total) of $(printf '%s\n' "$W" | total)"
   echo "incomplete shots: $(incomplete)"
   exit 0
 fi
 
-NL=0; NREBOOT=0; LASTREBOOT=0; LAUNCHED=0; DOWN=0; DOWNALERT=0; NOLOGON=0; GPUALERT=0
+NL=0; NREBOOT=0; LASTREBOOT=0; LAUNCHED=0; DOWN=0; DOWNALERT=0; NOLOGON=0; GPUALERT=0; SEEN_DRIFT="|"
 log "supervisor start (pid $$, mode $MODE): $(frames_want | total) frames wanted"
 while true; do
   T=$(now)
@@ -170,7 +176,15 @@ while true; do
     log "render server not running -> start it"
     have start_server && start_server
   fi
-  # 7 the driver
+  # 7 drift in the frames written so far (slow frames, a changed spec hash, missing pass layers): alert once per key
+  if have drift_check; then
+    while IFS= read -r D; do
+      [ -n "$D" ] || continue
+      K=${D%%:*}
+      case "$SEEN_DRIFT" in *"|$K|"*) ;; *) SEEN_DRIFT="$SEEN_DRIFT$K|"; notify "$RUN_NAME drift - $D";; esac
+    done < <(drift_check 2>/dev/null)
+  fi
+  # 8 the driver
   P=$(driver_pids | tr '\n' ' ')
   if [ -n "${P// /}" ]; then
     AGE=$(newest_frame_age_s | tr -dc '0-9'); AGE=${AGE:-0}

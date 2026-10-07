@@ -8,11 +8,13 @@
 ## 0 · Finishing a new frame: the recipe
 1. **Light it with the gatekeepers (§2)** and read the image *and* the numbers: crush, world/key ratio, the set's
    median, the reads gates (`lighting.md` §5).
-2. **Final render:** 32-bit float EXR (ZIP), every emitter in a light group, the groups denoised separately so they sum
-   to the beauty (check the ratio ≈ 1).
+2. **Final render:** 32-bit float EXR (ZIP), every emitter in a light group, the groups summing to the beauty (check the
+   ratio ≈ 1). Finals carry no denoiser by default (`cycles-production.md` §9.1); denoise the groups separately only
+   if the beauty is denoised.
 3. **Plates:** lens optics applied per light group (§4.2).
-4. **Look:** the current chain (`finishing.md` §1). Use the targets below (§3, §7) as diagnostics: read where a frame
-   sits outside them, and fix the light first.
+4. **Look:** the current chain (`finishing.md` §1). Run the targets below (§3, §7) as diagnostics on each regime's KEY
+   (day, dusk, macro, night) at stage 12: read where a frame sits outside them, and fix the light (stage 5), not the
+   grade.
 5. **Finish in Resolve** (§4) and verify every delivered frame against its numpy twin (L50 within ±1.5). A frame that
    equals its "all gains = 1" twin means the comp was bypassed (§5).
 6. **Sheet** the frames for review.
@@ -91,9 +93,10 @@ Other rules:
 
 **Pipeline:**
 1. **Blender → EXR.**
-   - Each light group denoised in the compositor with albedo/normal, 32-bit ZIP.
+   - Each light group as its own pass, 32-bit ZIP; denoised in the compositor with albedo/normal only when the
+     beauty is denoised (by default it isn't).
    - The main EXR keeps all passes (32-bit ZIP).
-   - The denoised groups sum to the beauty within 0.5 %.
+   - The groups sum to the beauty within 0.5 %.
 2. **Plates.**
    - Lens optics only (PSF glare, veil, CA and distortion, vignette; `camera-post.md`) plus ~0.65 px softness, applied
      **per layer**. That is exact because optics are linear: lens(Σgᵢ·LGᵢ) = Σgᵢ·lens(LGᵢ).

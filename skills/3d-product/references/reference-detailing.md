@@ -13,7 +13,7 @@ gather references (drawing, user photos, web photos, manuals, exploded views, ca
 research part by part (D-tracks: mechanics · controls/housing · surfaces/materials), photos measured, evidence-tagged
 build/patch the B-rep part by part (one named solid per part, real axes, nothing floats)
 camera-matched photo QA (solve each photo's camera → render through it → side by side / blend) ──┐ repeat until
-material research → swatch calibration at the photo's mm/px → per-component material audit ──────┘ the pairs agree
+material research → swatches passed by number → per-component audit (patch ratios) ──────────────┘ the pairs agree
 decide intent vs age (render the finish as designed unless the brief says otherwise)
 storyboard → finish → board; the skill and memory get the new traps and tools
 ```
@@ -26,6 +26,9 @@ Budget for it: the detail pass takes longer than the first model, and every roun
   proportions) and its resolution. Deduplicate by md5 (users' photo sets often contain duplicates).
 - Rule: take a detail only from the variant you are building, or from a part the research shows is shared (the same
   moulding across variants) — never from a part that differs between them.
+- Every variant in the table becomes a generator flag. Each variant is exported as its own file and passes the same
+  gates: sizes against published values, overlaps, overlays (`patent-to-model.md` § Measure and gate). Never mix parts
+  from different variants or site types in one build.
 - The user's photos are private reference: analyse them, never republish them (no board, no artifact). QA sheets that
   contain them stay local.
 
@@ -67,47 +70,114 @@ Prompt rules that matter:
   axis), tilt (horizontal axis carried by the swing). Pose with `Location` rotations about the real axes; never
   translate a jointed part.
 - **Nothing floats.** Every moving part touches its carrier (axle through bearings, pin in its slot, tube in its
-  trough, weight on its vane). Check poses (rest, raised, working, end of travel) in detail views from angles the
-  photos don't show.
+  trough, weight on its vane). Measure it in the pose matrix (`patent-to-model.md` §6), then look at the poses (rest,
+  raised, working, end of travel) in detail views from angles the photos don't show.
 - **Printed marks as relief geometry** (build123d `Text` extruded 0.03 mm) for parts that move or are seen in macro
-  (scales, dials, nameplates); textures by Generated coordinates for large fixed prints. Logotypes: vector paths from
-  measured letter widths in units of cap height, not a font stand-in.
-- **Where production and drawing disagree, build production and record the drawing.** The patent is the design claim;
-  the product the user wants rendered is the one in the photographs (catalogue heights over drawn heights; a production
-  part without the drawing's trim). Keep the patent variant behind a flag and let the overlay show the difference.
-  Where evidence conflicts and a hard constraint exists (a mechanism's published geometry fixes a distance), the
-  constraint decides.
+  (scales, dials, nameplates); textures in the part's print UV layer for large fixed prints (`patent-to-model.md` §7).
+  Logotypes: vector paths from measured letter widths in units of cap height, not a font stand-in.
+- **Every number in the generator carries its source tag:** the tags of §2 plus [F] for a value fitted in a solve.
+  Each version's CHANGES file has a fix table (# · item · old → new · evidence), a "not changed" list, and a closing
+  section: where the model is off, and what is still a guess.
+- **When evidence runs out, decide with a labelled estimate.** Take the mean of the independent sources and bound it by
+  hard constraints (a fastener must clear its neighbour). Write the value with its uncertainty (± or one-sided), and
+  name the one measurement that would settle it, with the model's prediction for it. Change it later as a new version,
+  by one documented rule. Why: waiting for evidence that doesn't exist stalls the build; an estimate with its bounds and
+  its test can be checked and replaced.
+- **Detail where the film looks.** Before a remodel, show the defect at the shot's own framing (a before/after crop)
+  and say what the fix costs. Hero-visible parts get the detail; the rest stay at the level the shots resolve. The user
+  may stop a remodel once they see it.
+- **Where production and drawing disagree, build production and record the drawing** (`patent-to-model.md` §3): the
+  patent variant behind a flag, the overlay showing the difference, a hard constraint deciding where one exists.
 
 ## 5. Camera-matched photo QA (the instrument that finds most errors)
 1. For each useful photo, pick 6–9 landmarks with known model coordinates, spread over the frame and in depth (controls,
    screw heads, body corners, hinge caps, window ends). Read their pixels on the original image.
 2. Solve the camera (position, yaw, pitch, roll, focal; least squares). 4–10 px rms is good; > 15 px means a wrong
-   landmark or a wrong model part (that is information).
+   landmark or a wrong model part (that is information). Leave the focal length free; pin it only when the points are
+   too few, and reject a pinned fit whose rms is clearly worse (measured: free ~6–10 px; a lens pinned from another
+   frame 20–35 px).
 3. Render the model through that camera (Blender lens = f·36 / long side, roll in Blender's sign) and compare side by
    side and as a 50 % blend. Offsets become pixels: part lengths, component positions, radii and spacings are found
    this way.
 4. Re-solve with alternative hypotheses to decide between sources (e.g. two sources' control positions; if the rms
    difference is small, it is inconclusive → keep the drawing). Project circles or outlines from the solved camera onto
    the photo to test radii and positions.
-5. Traps: landmarks all on one side extrapolate badly; too few points slide to an orthographic solution (pin f); the
-   roll sign flips between a solver and Blender; phone photos at the frame edge carry lens distortion.
+5. Hold one photo or frame out of the solve set and check the model through its camera last (`patent-to-model.md` §0).
+6. Traps: landmarks all on one side extrapolate badly; too few points slide to an orthographic solution (pin f); the
+   roll sign flips between a solver and Blender; readings near the frame edge carry lens distortion (measured once: a
+   length read ~12 mm long), so take dimensions from near the centre.
 
 ## 6. Materials: research, calibrate, audit
-- **Measure the photo, then calibrate in isolation.** Build 3–4 swatch plates (with the part's own edge radius), light
-  them like the photo (for a sheen texture: a window at the mirror angle, exposure set so the sheen sits mid-grey),
-  render at the photo's mm/px and put a 1:1 crop of the photo beside them. One variable per swatch. A measured bump
-  value can be invisible; a single noise scaled up looks like sandpaper from above; **two noise scales plus a coarse
-  roughness mottle** (e.g. 0.4 mm ×1.5 + 1.2 mm ×1.0 + a 5 mm mottle for a textured lacquer) match in the sheen and
-  stay quiet head-on.
-- **Audit every identifiable component:** component → reference crop (user photo, or the closest variant, or a cited
-  source) → the same crop from a camera-matched render lit like the photo → the material settings → a verdict. Two or
-  three rounds; write a material audit doc with the physical material, the reference, the settings and what changed.
-  Include the props.
-- **Light the audit like the photo, not like a studio.** A large overhead panel greys a dark glossy prop that the
-  photo's small lamp shows dark with one band; a studio backdrop can block the photo's window light entirely.
-- **Intent vs age.** Photos of an old unit show dust, bloom, lint, burnish, smudges, pitting and dulled plating. Render
-  the finish as designed unless the brief asks for patina: keep the age layer as a switch, off by default
-  (`wear-materials.md`). The design finish (grain, blast, diamond cut, gloss, stipple, print) stays.
+1. **Measure the photo, per part, at its mm/px:** the lit and shadow colour (linear); the highlight width (FWHM, mm);
+   the high-pass rms and feature size of log luminance, in the sheen (grazing) and head-on.
+2. **Calibrate on swatches and pass them by number.** Build 3–4 swatch plates with the part's own edge radius, light
+   them like the photo (for a sheen texture: a window at the mirror angle, exposure set so the sheen sits mid-grey),
+   render at the photo's mm/px, one variable per swatch, with a 1:1 crop of the photo beside them. Write the photo's and
+   each swatch's numbers side by side; a swatch passes when both views sit inside the photo's spread. Why: a measured
+   bump value can be invisible, and one that matches at grazing can look like sandpaper head-on (measured once: a
+   lacquer grain 2.5× too weak until calibrated). Two noise scales (e.g. 0.4 mm ×1.5 + 1.2 mm ×1.0 for a textured
+   lacquer) matched in the sheen and stayed quiet head-on.
+3. **Re-judge mottle and bump at the closest framing the shot list uses.** Render that framing at preview quality
+   twice, with two seeds: a pattern that stays put is the material, not noise. Keep only a mottle that is invisible
+   there or reads as the real finish. Why: texture tuned at the photo's scale read as blotches in a close-up (measured
+   once: a few-mm roughness mottle and a full-strength bump; fixed by mottle off and bump at 25 %).
+4. **Albedo in a physical range, measured, never inferred from a name.** Target each finish's reflectance from a cited
+   source (an LRV, a maker's value) or from the measured mean of reference photos under neutral light; write it in sRGB
+   and linear. Never reach a target with a chain of brightness and saturation tweaks: it turns one wood or paint into
+   another. Regrade or swap the texture to the measured mean, keeping its own contrast. Measured in kit libraries,
+   errors ran 2–3× both ways: a "walnut" that rendered cherry-pink; a mid-brown hardwood veneer at 0.07 linear against
+   ~0.15–0.24 real; a "white" paint at 0.41 against 0.80–0.85. Stage 4 re-checks albedo in the render, in the dressed
+   set.
+5. **Audit every identifiable component:** component → reference crop (user photo, or the closest variant, or a cited
+   source) → the same crop from a camera-matched render lit like the photo → the material settings → a verdict. Two or
+   three rounds; write a material audit doc with the physical material, the reference, the settings and what changed.
+   Include the props.
+6. **Audit by numbers where a reference image exists.** Push render and reference through the same look and measure
+   scene-linear ratios (render / reference) on named patches of every identifiable component. Before changing a
+   material, diagnose the miss:
+   - a patch that mirrors something the render lacks (a person, a cable, a bright wall) is an environment gap;
+   - a whole-region bias is the light: fit the audit light to the reference first;
+   - only a ratio that stays off under fitted light is the material.
+
+   Change one factor per round (base colour or roughness) and re-measure. Measured once: ratios of 0.63–2.17 became
+   0.89–1.09 in two passes, and the eye-only audit had missed the 1.5–2× errors.
+7. **Light the audit like the photo, not like a studio.** A large overhead panel greys a dark glossy prop that the
+   photo's small lamp shows dark with one band; a studio backdrop can block the photo's window light entirely.
+8. **Inventory every glass layer.** List each transparent material and its layers: windows as thin panes (front-face
+   Fresnel); kit glass that drives transmission from a map, rebuilt as a thin pane by that map; each milky or diffuse
+   layer with its weight; each mix's input convention. Check each in every light state. Measured once: a 2–5 % milky
+   layer, invisible by day, carried 82 % of a night pane's light.
+9. **Materials and light are coupled.** Lights are fitted to the materials they lit, so a material change after stage
+   5 re-runs the light-state sheet (reads, fills, levels).
+10. **Intent vs age.** Photos of an old unit show dust, bloom, lint, burnish, smudges, pitting and dulled plating.
+    Render the finish as designed unless the brief asks for patina: keep the age layer as a switch, off by default
+    (`wear-materials.md`). The design finish (grain, blast, diamond cut, gloss, stipple, print) stays.
+
+## 6b. Keep it light while you build (materials)
+Material weight is decided when the material is built: texture sizes, shader structure, emitters, displacement. Found
+at production, each fix changes an approved look. The budget is in `scene-optimisation.md` §0; this is the material
+side.
+1. **Texture size by role and closest framing.** Product, prints and labels at what their closest framing resolves;
+   props and set by role (`scene-optimisation.md` §0). Image files, not packed: packed images can reach a second engine
+   as float RGBA, 16 B/px (measured). Measured once: sizing maps by on-screen need cut VRAM 10.9 → 8.3 GB per card,
+   images identical at 1:1.
+2. **Greyscale maps single-channel** (roughness, metallic, height, masks), Non-Color, 16-bit at most. A height map that
+   only feeds bump needs no 32-bit float.
+3. **Shared, parameterised procedurals.** Count the distinct procedural graphs per material as you build. Product
+   procedurals come from a few shared node groups (one structure, the numbers as inputs); set materials prefer images
+   or bakes. Measured after conversion: ~0.26 s per procedural node plus ~0.38 s per distinct shader of session
+   start-up; folding the distinct shaders into about a quarter as many shared ones cut sampling 22–25 %, images
+   identical.
+4. **Bake what the final engine converts badly.** Before a material is approved, list its features the final engine
+   converts badly: procedural textures it can't run, box projection, Generated or Object coordinates shared across
+   instances, an emission colour above 1, a mix's input order (`octane-production.md` §4). Bake or rebuild them now, in
+   a versioned copy. Wear masks for finals are baked or SDF-native (`wear-materials.md`).
+5. **Emission only where a light is meant.** A glowing decal, screen or print is still a mesh light: turn its emission
+   sampling off and keep it visible to the camera and in reflections. Measured: taking ~225k emissive prop triangles
+   out of light sampling was about a third of a 9× time gain at equal noise.
+6. **Displacement only where an outline needs it** (silhouette detail); bump everywhere else. Measured: texture
+   displacement in the final engine cost ~0 sampling time; Cycles true displacement cost +70 %, and adaptive
+   subdivision at 1 px ran out of memory in a close-up (2.5 px for close-ups).
 
 ## 7. Hand-off
 - The project's thinking doc gets a phase for the detail pass: what each matched photo changed (before → after), the
@@ -160,10 +230,8 @@ or roughness error does. This applies to the product and to hero props and furni
 5. **Consecutive leaves, never identical:** neighbouring panels take neighbouring regions of the texture, so they read as
    siblings; a wide panel is made of several leaves from different regions, with faint joints parallel to the pattern.
    No visible repeat anywhere a camera can see.
-6. **Keep the real colour.** Don't brighten or desaturate a texture into a different material (a brightening chain can
-   turn one wood species into another). Target the measured mean colour of reference photos of the real finish under
-   neutral light, keep the texture's own contrast, and set roughness and coat by the real finish (render intent, not
-   age).
+6. **Keep the real colour** (§6.4): the measured mean of the real finish, the texture's own contrast, and roughness and
+   coat by the real finish (render intent, not age).
 7. **Check it:**
    - a **stripe-card UV check**: swap the texture for a directional stripe card and render every part's views; each
      stripe must follow the table;
@@ -174,3 +242,20 @@ or roughness error does. This applies to the product and to hero props and furni
 8. **Port to the final engine as versioned copies:** run the same UV script on copies of the engine masters, rebuild
    the material to match (bake any parameter the engine's material lacks, such as a normal strength, into the texture;
    remove conversion leftovers such as a box projection or a stray sheen), never edit a master in place.
+
+## Measure and gate
+Stage 3 (materials). Stage 2's gate is in `patent-to-model.md`.
+
+| Measure | How | Pass |
+|---|---|---|
+| Swatches | photo vs swatch: lit/shadow colour, highlight FWHM, high-pass rms and feature size at grazing and head-on, at the photo's mm/px (§6.1–2) | both views inside the photo's spread |
+| Patch ratios | render / reference, scene-linear, through the same look, camera-matched and lit like the reference (§6.6) | each named patch within ±10 %, or a written cause |
+| Albedo | each finish against its cited or measured reflectance (§6.4) | hero-support and large-area materials within ×1.3 [J] |
+| Closest framing | each glossy part at its closest planned framing, preview quality, two seeds (§6.3) | no seed-stable blotch that isn't the real finish |
+| Glass layers | the inventory, each layer in each light state (§6.8) | every layer listed with its weight and mix convention |
+| Prints | rectification residual (tracing, above); each map's strength rendered on/off; visibility per shot by ray sampling (`graphics-labels.md` §4–5) | residual ≤ 2.5 px; strengths measured and written; every visible shot confirmed |
+| Patterned parts | stripe-card UV render; shimmer test on a moving shot (patterned materials, above) | every stripe follows the table; no frame jumps, no moiré at 1:1 |
+| Material cost | `scene_weight.py` on the material file, plus a line per material: texture MB at the chosen sizes, distinct procedural graphs, glass layers, emitters (§6b) | inside the stage's share of `budget.json`; every outlier has a written decision |
+
+**Sheet:** the swatch sheet with photo and swatch numbers side by side; the audit sheet with the ratio table; the
+material cost list. Sheets that hold user photos stay private.

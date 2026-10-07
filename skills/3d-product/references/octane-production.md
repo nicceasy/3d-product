@@ -3,7 +3,10 @@
 How to take an approved Cycles film to Octane finals on a render node. Measured on a multi-GPU node (four high-end
 consumer GPUs capped at 200 W) with the OctaneBlender add-on and OctaneServer Studio 31.10 in Blender 5.2, 1080p unless stated.
 Add-on behaviour below was verified on 31.10: re-verify after any add-on update. Related: `cycles-production.md` (the
-other path), `scene-optimisation.md`, `render-farm.md`.
+other path, and §9–10 the stage-6 process for both paths: noise target and denoiser policy, sampling archetypes,
+architecture costs, complete settings, output spec, look per light state, temporal checks), `scene-optimisation.md`,
+`render-farm.md`. Engine specifics (kernels, sampling sweeps, lights, OSL, VRAM): the Octane manual, or an `/octane`
+reference skill if installed.
 
 Contents: 1 When Octane · 2 Running it (the interactive session) · 3 The production architecture · 4 Converting the
 scene · 5 The render config (realism ≤ 2×) · 6 Sampling: what works, what doesn't · 7 Realism ladder verdicts · 8 FKL in
@@ -35,7 +38,8 @@ Octane, then sequences · 9 Timings · 10 Open questions · 11 Verified traps
 ## 3. The production architecture
 **ONE converted Octane master scene + a small animation pack per shot, applied in ONE kept-alive session.** Measured:
 a pack costs seconds and kilobytes per shot; converting each shot's own blend costs minutes and gigabytes (≈ 13× the
-time, ~10⁵× the disk).
+time, ~10⁵× the disk). Pick it at stage 6 and measure its fixed costs then (`cycles-production.md` §9.3): it decides how
+stage 9 authors motion (channels a pack can carry, the master untouched per shot, unsupported drivers baked).
 
 | Step | Where | Output |
 |---|---|---|
@@ -107,7 +111,7 @@ Calibration facts:
 ## 5. The render config: "realism ≤ 2×" (realism within ~2× production time; called the realism config below)
 | Setting | Value |
 |---|---|
-| Kernel | Path tracing, coherent ratio 1.0 + static noise, 1536 spp, adaptive off, no denoiser |
+| Kernel | Path tracing, adaptive on (threshold and cap per shot from a sweep, §6), static noise OFF at high caps (ON only for locked-off cameras at low samples), no denoiser. Applied as one complete spec after a reset, read back, hash logged (`cycles-production.md` §9.4). Earlier: coherent 1.0 + static noise, 1536 spp, adaptive off — superseded |
 | Transport | GI clamp 100, diffuse / specular / scatter depth 16 / 32 / 16, caustic blur 0 |
 | Metals | Universal "RGB IOR" on parts whose photo-matched F0 ≥ 0.85 (aluminium: (1.56, 7.71) / (1.02, 6.63) / (0.63, 5.46)); "Artistic" elsewhere |
 | Acrylic (PMMA) covers | IOR 1.4917, roughness ≥ 0.03, absorption; **no dispersion** |
@@ -126,21 +130,27 @@ static noise, cover dispersion) costs 3.4× the realism config for the same look
   and a ~26 s stop every frame; the session pays them once per chunk).
 - **Coherent ratio with static noise ON:** 0.25 / 0.35 / 0.5 / 0.75 = −15 / −19 / −26 / −38 % time at the same noise;
   1.0 + static noise −57 %, with flicker equal to Cycles production. Without static noise, coherent 0.75 flickers 4.3×
-  (blotches).
+  (blotches). Static noise fixes the pattern to the screen, which shows on moving shots (§5: OFF at high caps).
 - Static geometry is cached from frame 2 (sync ≈ 10× faster, near zero kept-alive). Resource cache 'All'.
 
 **Don't:**
-- Adaptive sampling: it engages (bright smooth areas converge; dark glossy lacquer never does) but at matched noise
-  nothing beats fixed spp. Prove any sampler with the noise pass (`use_pass_noise`), never by the setting.
+- ~~Adaptive sampling: no gain at matched noise~~ — overturned: it pays where pixels converge (lamp-lit night: 88 %
+  stopped, ~½ the time) and costs nothing where they don't (window-lit day, refraction-lit glass covers: the cap decides).
+  Sweep cap × threshold per shot (`cycles-production.md` §9). Prove any sampler with the noise pass or time, never by the setting.
 - NRC: noise × 4.3 at × 4.8 time.
 - GI clamp off for production: noise +48 % (fireflies).
 - Depths 3/8: −9 % time for −4 % light (bias).
 - Direct Lighting kernel: biased (ΔE00 ≈ 9). PMC: 2.3× time (reference stills only).
 - The AI denoiser (or Octane's OIDN) on realism frames: it erased ≈ 25 % of fine detail energy (grooves, print) and
   flickers 1.7× raw. At production spp (256–512) it also leaves single-pixel speckle and blotchy mottling on dark
-  lacquer and dark plastic; post OIDN on the raw beauty is clean (`finishing.md` §1). A driver option that writes the
-  denoised beauty as RGBA, the raw beauty as extra layers and a header flag lets the finishing chain choose.
-- Path termination power 0.1, parallel / tile samples ≠ 32, AI light, light sampling rates: no gain at matched noise.
+  lacquer and dark plastic. Policy: no denoiser; sample to the noise target (`cycles-production.md` §9.1). When a
+  denoiser is tested, a driver option that writes the denoised beauty as RGBA, the raw beauty as extra layers and a
+  header flag lets the finishing chain choose.
+- Path termination power 0.1, parallel / tile samples ≠ 32: no gain at matched noise.
+- ~~AI light, light sampling rates: no gain at matched noise~~ — superseded by a later measurement on a lamp-lit scene:
+  AI light together with analytic lamps, glowing props taken out of light sampling and fake shadows on closed covers
+  gave ≈ 9× less time at equal noise; any one alone gave far less. Design the lights to converge at stage 5
+  (`scene-optimisation.md` §0.3).
 - A bigger CUDA JIT cache: every session hashes a new kernel.
 
 **Matched noise, honestly:** measure display RMSE against an independent 4096-spp reference rendered with a different
@@ -165,10 +175,12 @@ seed. Cycles is deterministic (seed 0): an image and a seed-0 reference share sa
    anything under glass, dark glossy finishes (noise, mottle), the set, focus on the subject, region luminance ratios
    (Octane vs Cycles), the conversion warnings list.
 3. Only then an explicit **"go" per shot or act** from the user. Agents stop and wait at this gate.
-4. Sequences in kept-alive chunks of 20–50 frames (+~100 s fixed per chunk: cold frame + stop). Overwrite off,
-   placeholders, one EXR per frame; the corrupt-frame check after any interruption (`render-farm.md`).
+4. Before each sequence, its key frame passes the level check against the approved frame. **The gate re-opens** for
+   any shot whose master, rig, kernel spec or sampling changed after its FKL approval (`render-supervision.md` §8).
+5. Sequences in kept-alive chunks of 20–50 frames (+~100 s fixed per chunk: cold frame + stop), the light passes on.
+   Overwrite off, placeholders, one EXR per frame; the corrupt-frame check after any interruption (`render-farm.md`).
 
-## 9. Timings (measured once on a four-GPU node, high-end consumer GPUs at 200 W, 1080p)
+## 9. Timings (measured on a four-GPU node, high-end consumer GPUs at 200–225 W, 1080p)
 | Config | Per frame |
 |---|---|
 | Octane stock `-a`, cache All | ~120 s (sync ≈ 1 + startup ≈ 60 + sampling ≈ 30 + stop ≈ 26) |
@@ -177,6 +189,9 @@ seed. Cycles is deterministic (seed 0): an image and a seed-0 reference share sa
 | + coherent 1.0 + static noise (production) | ≈ 13 s |
 | **Realism config** (1536 spp) | **≈ 20 s** (22–41 s warm with motion blur on a heavy set) |
 | Max realism | ≈ 68 s |
+| No denoiser, adaptive (cap 4096, threshold ≤ 0.1), beauty only | day (window-lit, cap-bound) 75–80 s; dusk ≈ 156 s; lamp-lit night 27–65 s; light passes add ~+10 % |
+| A whole film at cap 2000, adaptive, no denoiser | ≈ 44 s per frame wall on average (25–50 s) |
+| A shot under a glass cover with real shadows (scene-bound) | ≈ 290 s |
 | Cycles production, 4 GPUs on one frame / 1 GPU per frame × 4 | ≈ 10 s / ≈ 7 s throughput |
 
 - **Startup:** ~75 s to first sample, ~95 % of it the per-session OSL JIT (cutting all OSL links: 74 → 4 s). Packed
@@ -192,7 +207,8 @@ seed. Cycles is deterministic (seed 0): an image and a seed-0 reference share sa
 ## 10. Open questions
 - A point-light power factor (Octane blackbody power per Cycles point-light watt) must be calibrated (§4, §11
   Practicals) before any lamp-lit shots; a guessed one is off by an order of magnitude.
-- OSL materials → native Octane nodes or bakes would remove most of the per-chunk startup.
+- OSL materials → native Octane nodes or bakes would remove most of the per-chunk startup (shared OSL code is measured:
+  −22…−25 % sampling, −30 s start-up; native nodes are not).
 - Anisotropy strength and sign: match each anisotropic material in isolation before the master bakes it.
 
 ## 11. Verified traps

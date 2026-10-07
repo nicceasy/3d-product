@@ -28,7 +28,7 @@ and how to make each phenomenon read on camera.
 |---|---|---|---|
 | **SDF-native** (vertex attribute) | at build time: edge = mean-curvature smoothstep (convex r 0.25–2 mm), cavity = SDF ambient occlusion (5 steps to 3 mm, −0.08 bias), sky = upward soft visibility; stored as vertex-colour RGB | **zero at render** (measured ≈ 3× faster than live masks on a field-worn macro) | SDF parts. Wear lands only where curvature is truly high: crisp chips at gaps and lips |
 | **Live ray masks** | Bevel-node edge (r 1–2 mm, 8–16 samples); inside-AO for modelled fillets (d ≈ 2R); AO cavity 3–5 mm; AO with a +Z normal for sky | about +20 % per mask, 3.2× for all four | B-rep meshes (large flat triangles defeat Pointiness and GN curvature), look-dev. The edge band is broader: it lights whole rims |
-| **Baked** | Smart UV plus an EMIT bake of the live masks at 2k (seconds per part) | baseline at render | B-rep finals, and any animation |
+| **Baked** | the part's build-time UVs (Smart UV only if it has none) plus an EMIT bake of the live masks at 2k (seconds per part) | baseline at render | B-rep finals, and any animation |
 
 Traps:
 - AO masks need a *true* distance field. Approximations (superquadrics, plan outlines scaled by min(a, b)) under-read

@@ -2,21 +2,32 @@
 
 One place for the lighting stage. Detail lives in: `realism-finishing.md` §2 (the lighting gatekeepers, measured),
 `alive-environments.md` §6 (location light), `environments.md` §6 (units, museum, practicals), `elements.md` §1–3
-(what each light says), `glass-light.md` §6 (glass), `animation.md` §6 and `greybox-animation.md` (light over time).
+(what each light says), `glass-light.md` §6 (glass), `animation.md` §6 and `greybox-animation.md` (light over time),
+`scene-optimisation.md` §0 (the budget each stage is measured against).
 
 Contents: 1 Order of work · 2 Motivated light by branch · 3 Light states · 4 Emitters · 5 The product must read (R7) ·
-6 Reflections and flags · 7 Light over time · 8 Gate · 9 Light tells time (a film's day → night)
+6 Reflections, flags and hot spots · 7 Light over time · 8 Lights that converge · 9 Light tells time (a film's day →
+night) · 10 Measure and gate
 
 ## 1. Order of work: grey box first
 1. **Grey box:** mid-grey clay (≈ 0.4) on everything except glass and emitters, so windows, glass covers and practicals
    still light the set and make bokeh. Keep printed marks as dark ink on the clay: prints are composition (plain clay
    frames print shots blind). Low resolution (960×540), ~8 spp + OIDN, persistent data: a couple of seconds per frame
-   on a laptop GPU. Look at light *shapes*: patches, shadow bars, rims, the reflections in the glossy parts.
+   on a laptop GPU. Look at light *shapes*: patches, shadow bars, rims, the reflections in the glossy parts. Every
+   emitter sits in its own light group from this first render, so level and noise can be read per light (§8).
 2. **Beauty look-dev on single frames:** real materials at 960×540, one variable per image, captioned sheets.
 3. **Calibrate energies on 3 frames before rendering 12.** First guesses at window and scrim energies can be several
-   stops off.
+   stops off. Calibrate only after the in-render albedo audit (`alive-environments.md` §10.2): albedo compounds through
+   every bounce, so energies set on wrong albedos are wrong twice.
 4. Name and freeze the **light states** (§3) before compositions: every later tool (composition search, FKL harness,
    production packs) keys them by name.
+5. **Design for convergence while you place the lights** (§8), not at the final: the per-light noise budget, the
+   hot-spot audit (§6) and seconds per frame per state go on the light-state sheet. Fixed later, each of these changed
+   an approved look.
+6. **Judge the light-state sheet with the product in its real materials** (§10). The reads gates can't be measured in
+   clay: a clay product never voids.
+7. **Materials and light are coupled.** Any material change after this stage re-runs the light-state sheet (reads,
+   fills, levels, convergence).
 
 ## 2. Motivated light by branch
 **Location** (`alive-environments.md` §6): only what the place would light.
@@ -25,9 +36,19 @@ Contents: 1 Order of work · 2 Motivated light by branch · 3 Light states · 4 
 - Colour temperature follows elevation (rules of thumb: +10° ≈ 3300 K, +6° ≈ 2900 K, +4° ≈ 2600 K; higher afternoon
   sun ≈ 3500–4500 K).
 - Windows are thin panes (front-face Fresnel gloss); refracting panes block shadow rays.
-- Haze is a whisper: σ ≈ 0.006 m⁻¹ in a 10 m room (0.03 is brown fog). In Octane: the environment medium at ~0.005
-  with the radius set per shot (`octane-production.md` §4–5).
-- Practicals off by day; after sunset a lamp is in frame and is the key; lamps make pools, not washes.
+- **Haze is opt-in.** Start every light state without it. Add a volume only for a named job (depth separation in a
+  wide, a beam the story needs). A/B it on the state's KEY and record in the state:
+  - the visible gain;
+  - the seconds per frame it adds;
+  - its share of the noise (from the light passes);
+  - the level it adds to dark finishes.
+
+  Why: a volume can be the most expensive light in the frame and is often invisible in a room. Measured: a
+  window-shaft beam ≈ 50 min per 1080p frame at defaults; a room haze added 0.02–0.11 to dark lacquer and 4–7 % of the
+  night noise. Both were cut for render time. If kept in an interior: σ ≈ 0.006 m⁻¹ in a 10 m room (0.03 reads as
+  brown fog); in Octane the environment medium at ~0.005 with its radius set per shot (`octane-production.md` §4–5).
+- Practicals off by day; after sunset a lamp is in frame and is the key; lamps make pools, not washes. Build them to
+  converge (§8): a point light buried in a shade spends most of its samples inside the lamp.
 
 **Studio** (`realism-finishing.md` §2, `elements.md` §1–2): the realism gatekeepers, in priority order.
 - No product-only light linking without a physical reason: keep the product key and add a **set-only twin at 25–30 %**
@@ -48,7 +69,9 @@ A **light state** is the full, frozen record of the light for a shot, so every t
    - sky / environment: which map, strength, tint, rotation;
    - practicals: which are on, power, CCT;
    - state-dependent emitters: indicators, screens, neighbours' windows, street lamps;
-   - camera: exposure and white balance.
+   - state-dependent material values: a window's diffuse layer, a cover's roughness, emitter powers (item 7);
+   - camera: exposure and white balance;
+   - cost: seconds per frame at the preview config and the convergence record (§8).
 2. **Name by what changes:** daylight states by sun elevation (e.g. `s20` = sun at 20°, `s3` = 3°), after-sunset
    states by a dusk index (`d1`, `d2`, … deepening). The name alone tells the order in the day.
 3. **One sun path for the film:** one azimuth track, elevation moving one way (§9). A small per-shot azimuth cheat is
@@ -57,6 +80,10 @@ A **light state** is the full, frozen record of the light for a shot, so every t
 5. Store the table once (a JSON the scene builders read) and record it in the render packs of every engine.
 6. Probe the states that matter before committing: a state where the sun is too high can turn black gloss grey; one too
    low may not reach the subject (§9.6).
+7. **One master for every state.** A state may need different material values (a window's diffuse layer, emitter
+   powers, a cover's roughness). Store them in the state record and let the builder or render driver apply them, so one
+   master file serves every state. Why: masters split by state drift apart, and every later fix has to be made twice.
+   Measured once: an outdated label rendered in one line, and the window glass behaved differently in the other.
 
 ## 4. Emitters
 - **Blackbody for every practical:** lamps 2700 K (in Cycles, energy × 0.495 keeps a lamp's luminance when switching
@@ -68,6 +95,10 @@ A **light state** is the full, frozen record of the light for a shot, so every t
 - Set emitters by luminance ratio to the key, not watts: practicals +2 to +3.5 EV over what they light. The core
   clips; the halo, spill and haze carry the colour.
 - Emitters need structure (`camera-post.md`): LED dies behind diffusers, light guides, glyphs through micro-holes.
+- **A lamp in a shade or fixture is built to converge** (§8): an analytic sphere at the filament, the shade as its own
+  emitter, the fixture excluded from the bulb's light.
+- **Things that glow but aren't lights** (screens, dials, decals, lit neighbour windows, emissive kit props) stay
+  visible to the camera and in reflections, but leave light sampling (§8).
 
 ## 5. The product must read (R7)
 Machine rules: `scripts/lighting_rules.json` (metric, thresholds with calibration, decision table, placement and power
@@ -144,10 +175,11 @@ on; one Light Pass ID per Cycles light group. There is no published W → Octane
 emitter at 5000 K, 2 m from an 18 % card, linear EXRs; measured: Cycles 100 W reads ≈ 0.42 on the card; solve the
 Octane power, re-check at 2700 K and 6500 K) and record the factor in the driver.
 
-**Process:** plan each light state's lighting during the grey box (which faces void, where the fill and rim live),
-and run `reads_metric.py` on every FKL frame; a frame that fails R1 or R2 is fixed by light, never by the grade.
+**Process:** plan each light state's lighting during the grey box (which faces void, where the fill and rim live). Run
+`reads_metric.py` on the light-state sheet, with the product in its real materials on 3–5 cameras per state (§10), and
+again on every FKL frame. A frame that fails R1 or R2 is fixed by light, never by the grade.
 
-## 6. Reflections and flags
+## 6. Reflections, flags and hot spots
 - Reflections are the lighting for metal; surroundings are the lighting for glass. Design what a glossy or dark
   surface mirrors first (e.g. a smoked cover mirrors the window).
 - Flag a reflection that hides the subject with a camera-invisible black card (e.g. a window reflection on a cover
@@ -156,7 +188,6 @@ and run `reads_metric.py` on every FKL frame; a frame that fails R1 or R2 is fix
   three-quarter angles and reads silver: dusk or plan views keep it black (gate it unless that surface is the subject).
 - Anisotropic sheen on a spinning part doesn't rotate with it (only printed detail and dust do); a rotating glossy
   panel sweeps its reflection at 2× its angle.
-- To find a mystery highlight, render once per light at 24 spp.
 - **Glass covers stay in every shot, at their story angle.** Never remove or hide a cover (or any visible part) to
   clean a composition; change the camera. A cover reads only through an edge highlight or a reflection, so frame it
   from the front or a three-quarter front: audit every camera's azimuth off the product's front, and treat > 100° (a
@@ -169,6 +200,23 @@ and run `reads_metric.py` on every FKL frame; a frame that fails R1 or R2 is fix
   aperture). Choose the camera's azimuth and elevation by a ray probe of what the mirror sees (`fkl-frames.md` §2b), so
   it reflects dark or cool surfaces.
 
+**Reflection and hot-spot audit (per light state, per planned camera family).** A hot spot is a small bright area (a
+sky's sun glow, a window, a bare lamp) seen in a glossy surface or through rough glass. It is a tiny bright source for
+every pixel that sees it, so it sets the sample count of the whole frame.
+1. List what every glossy and transparent surface mirrors and refracts: ray-probe its mirror and refraction
+   directions, or render once per light at low spp (24 spp is enough to find a mystery highlight).
+2. Mark the unwanted reflections (a source that hides the subject, a coloured light on the wrong face) and the hot
+   spots.
+3. Fix them at the source, in this order:
+   - rotate the environment: a sweep of stills at ~45° steps (8 frames), and the user picks;
+   - move a practical;
+   - add a camera-invisible flag.
+
+   Change a material's roughness only with the user's OK: the material is the design intent (`glass-light.md` §5).
+4. Never fix them with samples or a post filter. Measured: a sky hot spot seen through a glossy cover needed a 16k
+   sample cap; after the environment was rotated, 4k matched it at equal noise. Post median filters went blotchy.
+5. Re-run the audit on the FKL frames (stage 8): new cameras find new mirror rays.
+
 ## 7. Light over time
 - One light event per shot, never during a mechanism's action. Reflections sliding with the camera are free.
 - Real sun drift is invisible within a shot (the sun moves 0.25°/min: a shadow edge shifts a few millimetres in a
@@ -177,14 +225,62 @@ and run `reads_metric.py` on every FKL frame; a frame that fails R1 or R2 is fix
 - Teaser grammar (`animation.md` §6): a glint travelling round a chamfer, a light-wipe cut, a flux-true zoom beam, the
   studio falling away at the end card.
 
-## 8. Gate
-- The product reads in every state and shot: `reads_metric.py` R1 void ≤ 0.30 and R2 separation ≥ 0.20 (warn at 0.20 /
-  0.40); a fail is fixed by light from the decision table, never by exposure.
-- Every added fill is a real surface lit by real light and passes the radiance check (in sun ≤ ~1× a sunlit white
-  card; in shade ≤ ~3–4× the local shaded surfaces).
-- Black lacquer black outside the light; no digital black (crush ≤ 1 %).
-- Light groups sum to the beauty within 1 %; every emitter in a group.
-- Show the user a light-state sheet: the product in each state, same camera.
+## 8. Lights that converge
+A light's cost is its noise, not its watts. The light and glass choices made at this stage moved production render
+time several-fold: a lamp buried in a shade, glowing props in light sampling, a hot spot in a cover, real shadows
+under a cover (measured: ~9× from the lamp and glowing-prop fixes, ~2× from one hot spot). Scene weight moved it
+20–25 %. Each was found at the final, and fixing it there changed an approved look. So design for convergence while
+the lights are placed.
+1. **Every light in its own pass** from the first lit preview (a light group in Cycles, a light pass ID in Octane),
+   with the sun and the sky or environment separate. Keep them on every final too: a light that comes out wrong later
+   is a comp gain, not a re-render (measured: 15 passes cost ~+7–10 % per frame and ~180 MB per 1080p frame).
+2. **A noise budget per light.** On the worst frame of each state, per region (the darkest third first), compare each
+   light's share of the light (its pass's mean) with its share of the noise (the variance of the difference between
+   two seeds, per pass, or the noise pass). A light whose noise share is far above its light share (judgement: more
+   than ~3×) is redesigned now. Measured: one table lamp in its shade carried ~90 % of a night frame's noise for 5–9 %
+   of its light.
+3. **Practicals built to converge.** A bulb inside a shade or fixture becomes:
+   - an analytic sphere at the filament, at its real size;
+   - the shade as its own emitter, fitted to the lit shade's measured brightness;
+   - the fixture (shade, socket, cage) excluded from the bulb's light.
+
+   Why: most of a buried bulb's rays hit its own fixture (measured once: 65 % blocked within 15 cm), so most of its
+   samples are spent inside the lamp. Re-match the look after the swap: measure the pool and the shade against the old
+   build and set per-lamp factors (measured once: the sphere lit its own shade ×1.85 and its pool ×1.27). Engine
+   specifics: the engine's manual (or `/octane`, if installed: lamp inside a shade).
+4. **Glowing props out of light sampling.** Screens, dials, decals, lit neighbour windows and emissive kit props stay
+   visible to the camera and in reflections, but are not sampled as lights. A near-black emissive texture is a mesh
+   light that costs samples and lights nothing: audit kit emitters at import (`alive-environments.md` §3b). Measured
+   once: ~225,000 emissive prop triangles and ~3,600 m² of neighbour windows sat in light sampling. Items 3 and 4,
+   with item 6, gave ~9× less render time at equal noise, and taking the glowing props out was about a third of it.
+5. **No added light also blocks light.** A fill card or flag gets the visibility flags of what it is, so it doesn't
+   shadow the key or the product.
+6. **The glass sampling aid per cover state × light state.** For each cover state (open, closed) in each light state,
+   render one preview with and without the engine's glass aid (fake or transparent shadows, thin wall). Keep the aid
+   only where the levels agree within ~3 %. Why: an aid on an open, sunlit cover lets direct sun through as if the
+   glass weren't there. Measured once: a label in direct sun rendered at 5.8× its correct level, found only in the
+   final and fixable only by re-render. Real shadows under a cover converge very slowly (measured: adaptive stopped
+   0.9 % of pixels there, against 88–95 % in a lamp-lit state), so know that state's cost now (item 9). Glass roughness
+   per state: `glass-light.md` §5.
+7. **Hot spots removed at the source** (§6), and **haze only with a measured cost** (§2).
+8. **Fit the lights to a reference frame** when a photo or footage frame of the real place exists. Render each light
+   group separately through the camera-matched view. Solve non-negative powers (NNLS) that best fit the reference in
+   scene-linear, on flat ~24 px cells plus named patches, through the same look. Keep the residual map. A light the fit
+   sends to zero is switched off: fewer lights, less noise. Re-fit after any material change. Measured once: the fit
+   turned two hand-placed lights off and lifted the worst patch from 0.72 to 0.92 of the reference.
+9. **Seconds per frame per state.** Render each state's worst frame in the final engine at a fixed preview config
+   (resolution, cap, threshold) and write the seconds next to the state, so the expensive states are known before
+   compositions are chosen. Daylit interiors converge slowest: their light is mostly indirect, and adaptive barely
+   engages at a production cap. Lamp-lit night frames converge fast (measured: day 75–80 s against night 27–65 s per
+   frame at one config). The budget it is held against: `scene-optimisation.md` §0.
+
+**The convergence record**, one per light state, kept in the state record and on the light-state sheet:
+- seconds to the production noise target (stage 6) at the preview config;
+- adaptive's stopped share (the pixels that stopped before the cap);
+- each light's share of the light against its share of the noise;
+- the hot spots found and how each was removed;
+- the glass-aid verdict per cover state;
+- haze: none, or kept with its measured cost.
 
 ## 9. Light tells time (a film that moves through the day)
 The light is the film's clock: the audience reads the time of day from it, so it must move one way and change only at
@@ -229,3 +325,26 @@ readable moments.
    murky, at a mean L* of about 16–18 or more after the grade. Lift through the light (point 7) when the grade's bounds
    can't reach it. Prop continuity (a cover's state, a lamp's position) may relax when the story spans hours; the user
    decides which continuity matters.
+
+## 10. Measure and gate (stage 5)
+The stage proves its own output on **the light-state sheet**: one row per light state; columns for 3–5 representative
+cameras (front, three-quarter, top-down, a macro of the largest dark face, a back-lit view); the product in its real
+materials (the set may stay clay, except glass and emitters).
+
+| Measure | How | Pass |
+|---|---|---|
+| Reads | `reads_metric.py` on every tile | R1 void ≤ 0.30 and R2 separation ≥ 0.20 (warn at 0.20 / 0.40). A state that fails anywhere gets its fill or rim planned now from §5's table, never exposure |
+| Fill radiance | each added fill in the scene-linear EXR against local references | in sun ≤ ~1× a sunlit white card; in shade ≤ ~3–4× the local shaded surfaces |
+| Black | crush share; black gloss outside the light | crush ≤ 1 %; black gloss stays black outside the light |
+| Groups | light groups summed against the beauty | within 1 %; every emitter in a group |
+| Noise per light | §8.2, from the light passes | no light whose noise share is far above its light share (judgement: > ~3×) left unexplained |
+| Reflections, hot spots | §6 audit per camera family | no unwanted reflection or hot spot left; any environment rotation picked by the user from the sweep |
+| Glass aid | §8.6, per cover state × light state | aid kept only where the levels agree within ~3 % |
+| Haze | §2 A/B | off, or kept with its gain and cost recorded |
+| Cost | seconds per frame per state at the preview config (§8.9) | within the budget (`scene-optimisation.md` §0), or the excess shown to the user |
+| Weight | `scripts/scene_weight.py --budget` on the lit master at the end of the stage | every line passes, or carries a written reason |
+| Light fit (when a reference exists) | §8.8 residual map | worst patches explained; lights fitted to zero switched off |
+| Brightness (a film through the day) | mean L* after the look | ≥ ~16–18 in every state (§9.10) |
+
+**Show the user** the light-state sheet with R1/R2 on each tile, and per row the seconds per frame and the convergence
+record (§8). For a film through the day, add the KEY strip in edit order (§9.9).

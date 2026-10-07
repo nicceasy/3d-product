@@ -32,6 +32,8 @@ Contents:
 3. **Model with named parts that match the animation's moving groups**, and build the product's states as flags
    (open/closed, on/off), so the stills and the animation share one source.
 4. **Plan the shots on a music grid first**, as a table: beat, board frame, change A → B, and the rule at each end (§3).
+   A short film cut to a beat is music-first like this. A longer film timed by its mechanisms is picture-first, with
+   the music map and a temp track laid at the animatic (`sound-design.md` §0).
 5. **Look-dev stills per shot at both keyframes** (960×540, 64 spp). Fix light, exposure and framing here; it's 10×
    cheaper than in motion.
 6. **Animatic** (640×360, 16 spp, all frames; measured ≈ 3 min for 15 s on a laptop GPU) → cut with the score →
@@ -64,8 +66,8 @@ Contents:
   - A shot that *arrives* at its idea (a settle, a reveal, a light-wipe, a glint reaching a mark) keeps the board frame
     at its **END**.
   - A shot that *departs* from an idea (something about to change: a click, a pulse, a twist) keeps it at its **START**.
-  - Generate the other frame by stating the one nameable change A → B. (In a longer film, compose all three frames:
-    `fkl-frames.md`.)
+  - Generate the other frame by stating the one nameable change A → B. (In a longer film, the move is chosen so that
+    FIRST, KEY and LAST are each a strong composition: `fkl-frames.md` §1.)
 - **The boundary-velocity rule.** A keyframe the viewer sees settle has zero velocity; a cut point keeps moving.
   - Author each end's slope as a multiple of the average speed (`slopes [v_start, v_end]`).
   - Exit fast into a cut (`accel`) and enter the next shot moving (`slopes(1.5, 0)` arrives at 1.5× and lands at 0),
@@ -97,7 +99,8 @@ Contents:
 - Springs are only for the last few percent: bezier to the detent, then a spring (9.5 % overshoot, settles in 3–4 f).
 - Moving holds: after the hero lands, keep a 1–2 % dolly so the frame reads as film, not a still.
 - For longer films the camera rule is constant speed with cuts mid-move (`camera-motion.md` §0); these eases stay for
-  mechanisms, light and teaser grammar.
+  mechanisms, light and teaser grammar. The one camera exception is the ease budget (a start or a stop the viewer
+  sees: an opener from a hold, the final settle, a move seen whole), and its profile is `moco`.
 
 ## 5 · Camera realism in motion (the biggest single fix)
 - **Camera paths and motion review live in `camera-motion.md`:** one rig with one progress and one aim, never

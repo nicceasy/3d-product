@@ -1,9 +1,10 @@
 # Editing: shot length, cutting on motion, pacing, the review ladder
 
-The author's rules for editing product films, and a procedure that applies them to any product. Related: `camera-motion.md` (how each shot moves), `transition-shots.md` (the shots that carry a light
-change), `lighting.md` §9 (light tells time).
+The author's rules for editing product films, and a procedure that applies them to any product. Related: `camera-motion.md` (how each shot moves, and §7, the stage-9 gate), `transition-shots.md`
+(the shots that carry a light change), `lighting.md` §9 (light tells time), `sound-design.md` §0 (when the music is
+decided).
 
-## 1 · The user's rules
+## 1 · The rules
 - **Duration follows the visual information consumed.** A complex frame, or a motivated subject-to-subject move, may
   hold. A simple detail doesn't. Texture alone never earns length; motion and colour do.
 - **Never cut between visually similar shots:** merge them, or drop one. "Similar" = view directions < 30° apart AND
@@ -61,7 +62,8 @@ allows (nothing lifts while a motor runs; a moving part clears every other part:
 ## 5 · Procedure: inventory → plan → paper edit → build → assemble
 1. **Inventory:**
    - per shot, the product's motion events in shot time;
-   - the motion windows, measured as the moving part's px/frame through the camera;
+   - the motion windows: frames where the moving part is in frame and moves faster than ~0.5 px/frame at 1920 through
+     the camera (measured: slower reads as still);
    - the similarity of every shot pair (view angle, size ratio, SSIM);
    - the story clock: what state (every mechanism, every indicator, the light) is each shot in?
 2. **The cut plan as a table:** per shot, the source, the idea, the duration, the in → out logic, the cut type into the
@@ -71,17 +73,24 @@ allows (nothing lifts while a motor runs; a moving part clears every other part:
    and the similarity of every adjacent pair before rendering anything new.
 4. **Build the new and re-timed shots** under the simple-move rules (`camera-motion.md` §0), with 24 f of handle each
    side.
-5. **Assemble frame-accurately** from a cut list (JSON). Gate:
-   - ≤ target runtime, no shot < 1.6 s;
-   - no adjacent pair too similar;
+5. **Assemble frame-accurately** and write the edit as the edit frames file, one record per film frame
+   (`greybox-animation.md`, the numeric hand-off); every consumer reads it. Gate, printed per cut:
+   - ≤ target runtime; no shot under the film's minimum (≈ 1.6 s for a launch film; ≈ 2.4 s measured on an
+     instructional one);
+   - each hold within its type's range (§2), unless a motion window or a mechanism event needs longer; every exception
+     listed with its reason;
+   - no adjacent pair too similar (§1: < 30° and < 1.5×);
    - no two stills in a row;
-   - every motion cut has the part visibly moving on the out side and the in side, or cuts ≤ 1 s after a stop;
-   - mechanism and light-state continuity at every cut, with the ellipses declared.
+   - every motion cut has the part visibly moving (> ~0.5 px/frame) on the out side and the in side, or cuts ≤ 1 s
+     after a stop;
+   - mechanism and light-state continuity at every cut, with the ellipses declared;
+   - the composition re-gate on the new in, out and cut frames (`camera-motion.md` §7).
 6. **Review:** the edit with burn-ins (edit number, source, cut type, edit time, light state, the moving part's
    px/frame), ±1 s clips around every cut, and a sheet of the frames either side of every cut.
 
-**Removing a shot re-gates its neighbours.** The two shots that now meet must pass the similarity, stills-in-a-row,
-motion-cut and continuity gates; the light schedule re-maps to the new edit times; every later shot's timing shifts.
+**Removing or replacing a shot re-gates its neighbours.** The two shots that now meet must pass the similarity,
+stills-in-a-row, motion-cut, continuity and composition gates; the light schedule re-maps to the new edit times; every
+later shot's timing shifts; the spotting sheet is regenerated from the new edit frames file (`sound-design.md` §2).
 Renumber in a new edit version (never in place) and keep a map from old to new numbers.
 
 **Changing an approved shot: version up, change only what the note targets.** When a note asks for a new angle, a
@@ -116,7 +125,9 @@ Each rung is a full pass of the film; move up only when the rung below is approv
 1. **Grey playblast** of every shot at 24 fps (`camera-motion.md` §4): motion and flow.
 2. **FKL animatic** in the final engine: three lit frames per shot held at edit pacing: FIRST until the F–K midpoint,
    KEY until the K–L midpoint, LAST to the out point. Burn in the edit number and the light state. It judges light,
-   composition and the light schedule across the whole film for about 3 renders per shot.
+   composition and the light schedule across the whole film for about 3 renders per shot. Lay the temp music or the
+   music map with its tempo map under it from here on (`sound-design.md` §0): constant moves with ≥ 12 f handles let a
+   cut slide up to ~8 f for free, so phrase landings can be matched before the finals.
 3. **Low-rate lit animatics:** every 6th frame (4 fps), then every 4th (6 fps), each a true 24 fps frame with correct
    motion blur (render F−1/F+1 or keep the pack contiguous and subsample only the render list). They judge motion in the
    real light before a full-rate render.
@@ -124,6 +135,8 @@ Each rung is a full pass of the film; move up only when the rung below is approv
 - **Spot-check before every full pass:** after any light, material or camera change, render the few KEY frames it
   touches (a before/after sheet with the numbers), approve them, then run the pass. A pass re-rendered for one wrong
   value costs hours.
+- **One shot changed, one shot re-checked:** after a change to one shot's move or mechanism, show that shot alone at
+  the 6 fps rung before re-running the film pass.
 - **Budget the pass from measured ratios, not guesses** (measured on a 4-GPU Octane node at 1080p): a light path-trace
   preview at 64 spp costs ≈ 1/10 of the 512 spp animatic setting (≈ 1 s vs 10–14 s per frame); a Direct Light kernel at
   the same spp is no faster than light PT; each shot switch in a kept-alive session ≈ 25 s; a session start ≈ 100 s.
@@ -138,3 +151,38 @@ Each rung is a full pass of the film; move up only when the rung below is approv
 - A rotationally symmetric part doesn't show spin in grey clay. The spin reads only in lit frames.
 - A moving part lifted over or past another (a cover, an arm) collides: solve the path clear first.
 - A similarity check on thumbnails misses same-angle pairs at different sizes; use the view-direction and size rule.
+- Clay hides what light and print reveal: two neighbours that read as different in grey can show the same print or the
+  same highlight once lit. After any look change (ink, light, grade), re-read adjacent shots in pairs.
+- A rendered move stretched in the edit steps (repeated or blended frames). Retime by re-rendering the move over more
+  frames (`camera-motion.md` §0), never by time-remapping it.
+
+## 9 · When a voice-over drives the cut
+An instructional or demo film is timed by its voice-over, not by its mechanisms. **Why:** the viewer must see the
+action at the moment the voice names it; a whole-file transcript's timestamps are estimates and drift (measured once:
+up to 16 s early by the end of a 4.6-minute read, so the cut slid out of sync and looked cut short).
+1. **Time the VO from the audio.** Silence detection (about −40 dB, ≥ 0.2 s) → speech segments. Transcribe each
+   segment on its own, only to label it, and map the segments to the script's lines. Never take times from one
+   whole-file transcription.
+2. **Check the ends before building:** the last line's end against the file's length, and the line count against the
+   script.
+3. **Each line gets a window.** The picture shows the action the line names inside it, starting within ~0.5 s of the
+   line's key word (judgement); take the word's onset from the waveform, not from a transcript. Callouts and graphics
+   key off the same onsets.
+4. **No stretching.** Never time-remap the VO or the footage. Add or trim frames at the cuts, or re-render the move
+   over more frames.
+5. The film's own minimum shot length and the product's state continuity hold at every cut, as in §5.
+
+## 10 · The end: the final shot plays through the hold
+When the music rings past the last cut, the picture must keep living until the sound is done. **The final shot plays
+through the end hold; it doesn't freeze.** Why: a frozen frame under a ringing chord reads as the film stopping before
+its sound.
+1. **Length:** the film runs ceil(mix length × fps) frames. The final shot extends past its cut out point by that
+   number minus the cut's frames, and its render adds ~1 s of margin.
+2. **Motion:** every running mechanism continues at its rate, and so does the camera's generator (or, on a final
+   shot inside the ease budget, its settle lands within the hold; `camera-motion.md` §0). Evaluate it in the rig with
+   the operator layer, never by extrapolating packed frames (that loses the operator's drift); recompute focus from the
+   subject distance, never by extrapolating a rack.
+3. **Order:** the length depends on the song's ending, so render the final shot with ~1 s of margin past the expected
+   ring-out, or after the ending locks. A swapped song changes this render; plan it in the render queue.
+4. **Fade:** to black over the last ~1.5 s (`sound-design.md` §11 conforms the mix to the same length).
+5. A frozen last frame is the fallback only when there is no time to render the extension; say so in the delivery.

@@ -1,7 +1,12 @@
 # Camera motion: simple moves, the operator layer, gates, and the motion-review playblast
 
 The author's rules for camera moves in product films, and how to build, gate and review them for any product. Simple moves (§0) are the base; the operator
-layer (§6) is the default on top of them.
+layer (§6) is the default on top of them; §7 is the stage-9 gate.
+
+**Where the move is decided.** Each shot's move is chosen at stages 7–8, so that its FIRST and LAST are strong
+compositions (`fkl-frames.md` §1). Stage 9 builds that move exactly (generator, direction, rate, anchored on the KEY),
+then adds the operator layer, the timing and the cut. Anything in stage 9 that moves a FIRST, a LAST or a cut frame is
+re-gated as a composition (§7).
 
 ## 0 · The rule: SIMPLE MOVES (a standing rule; it overrides the spline rig in §2)
 The user rejected moves threaded through several stills: "moving in too many dimensions. Camera is turning floating
@@ -20,6 +25,10 @@ changing direction ... I want the move to be simple!"
   vector never changes and nothing can wobble.
 - **Legal pairs, with the aim locked:** push/pull + boom (a log spiral) and arc + track (an azimuth spiral). Anything
   else is one move or a cut.
+- **The shot's idea names the generator; the composition picks its direction.** A detail → push in. A reveal of the
+  whole or of its context → pull out or crane up. A form → arc. A row or a line → truck along it. An edge or a layer →
+  pedestal over it. A top plane → crane over it or slide across it. Why: a move whose direction contradicts the idea
+  reads as motion for its own sake.
 - **Group moves:** when several shots share a move (a match-cut pair, a family of views), give them the same generator
   and rate, each anchored on its own KEY, so the motion continues across the cut.
 - **The aim never follows a moving part.** It is locked on its KEY pixel, parallel with the body, or panning at a
@@ -30,16 +39,37 @@ changing direction ... I want the move to be simple!"
 - **No look-at, no up vector.** Orientation is the move's rotation composed with the KEY's, so a top-down shot cannot
   flip. Lens, roll, shift and f-stop are constant. Focus follows the aim; a rack uses up the secondary slot.
 - **No roll**, ever, unless the brief names it.
-- **Constant speed from the first frame to the last. No ramps or settles inside a shot** (cuts come mid-move).
+- **Constant speed wherever the shot is cut mid-move** (the usual case: the edit enters moving and leaves before
+  arrival). Why: the viewer never sees such a move start or stop, so an ease there is only a speed change, and it reads
+  as a wobble.
+- **The ease budget: feather a move only where its start or its stop is on screen.** Three cases:
+  1. an opener that starts from a hold;
+  2. the film's final shot settling under the name or the end card (a settle of ≥ 2 s);
+  3. a stand-alone or inset move seen whole (a picture-in-picture, a loop).
+
+  Then use one progress curve on the whole move: an ease in and an ease out of ≥ 0.5 s each, constant between, with
+  the peak speed ≤ 1.33× the mean (the `moco` profile, `animation.md` §4). Never ease per axis. Name each eased shot
+  in the shot data; every other ease belongs to the product's mechanisms (`greybox-animation.md`).
 - **Speeds (rules of thumb at 24 fps, 180° shutter):** push 2–9 %/s of the field; arc/crane 1.6–2.5°/s, under the
   lens cap (85 mm 3.8°/s, 100 mm 3.2°/s, 135 mm 2.4°/s with a sharp background; aim for half); truck/slide about
   4 % W/s. A top-down *rotation* reads as roll: use a slide.
-- **FIRST and LAST are outcomes of the move**, not anchors. To convert an older multi-axis move:
+- **Speed is the parameter; duration follows.** A longer or shorter shot keeps the approved rate and changes the
+  travel. Then check that the change the viewer sees inside the edit window (rate × edit duration) still reads
+  (judgement: scale ×1.25, an arc or pedestal of ~12°, a truck of ~20 % of the field). If it doesn't, lengthen the shot
+  or make it static. **Never time-stretch a rendered move**: stretched frames step. Re-render it over more frames.
+- **FIRST and LAST are outcomes of the move.** The move was chosen so they are strong (see the top of this file), and
+  stage 9 must keep them so. Measure each outcome frame against its approved still: the subject's shift in % of the
+  frame width and the view direction's turn in degrees. Report every shift. Re-show any shift ≥ 10 % W to the user,
+  old and new frames side by side (measured: converting free moves to simple moves shifted about a fifth of FIRST and a
+  third of LAST frames that far). A frame that fails the composition analysis (§7) is repaired through the move's
+  direction, its rate or t_KEY, never by breaking the rule. A frame that can't be repaired sends the shot back to
+  stage 8.
+- **Converting an older multi-axis move:**
   1. split its change into components;
   2. keep the largest as the primary;
   3. keep one legal subtle secondary, if there is one;
   4. drop everything else;
-  5. re-review FIRST and LAST as compositions.
+  5. measure FIRST and LAST against their stills and re-gate them (§7).
 - **Show:** a top view and a side view of each shot's body path and aim, with the grey playblast of every shot plus
   the edit (§4).
 
@@ -87,7 +117,7 @@ For any move:
 | subject swim | pinned to the stills' pixel; 0 velocity reversals |
 | image flow | target ≈ 5 px/frame, ceiling ≈ 11 px/frame at 1920 wide (the 7-second rule) |
 | focus error | ≤ 10 % of the half depth of field |
-| FIRST/KEY/LAST exactness | ≤ 0.5 mm, 0.01°, 0.01 mm lens |
+| KEY exactness (and FIRST and LAST on a spline rig through stills) | ≤ 0.5 mm, 0.01°, 0.01 mm lens |
 
 A KEY anchored to a mechanism, rack or light event is locked. Intended exceptions are named per shot in the data. Flow
 over the ceiling means lengthening the shot or reframing it; never exceed it silently.
@@ -97,7 +127,8 @@ The numbers catch the jumps; the user judges the feel. Every camera change goes 
 shots, not a few before/after clips:
 1. **Render grey playblasts** (Workbench) of every 24 fps frame of every shot from the current camera source; check the
    camera file is older than the frames (a stale film looks right and is wrong). The shot's KEY set state, no DOF, no
-   blur, 960×540 JPEG. Rule of thumb: ≈ 0.2–0.3 s/frame on a laptop GPU, so a 5-minute film takes ≈ 15 min in two
+   blur, 960×540 JPEG. Keep it light: load the set once per process with `--factory-startup`, write JPEGs only, never
+   save a blend. Rule of thumb: ≈ 0.2–0.3 s/frame on a laptop GPU, so a 5-minute film takes ≈ 15 min in two
    processes.
 2. **Compose for review:**
    - one **H.264 clip per shot** with a caption bar (shot, title, act, frame/N, shot time, film time, a FIRST/KEY/LAST
@@ -107,9 +138,11 @@ shots, not a few before/after clips:
    - per-shot stats (peak and mean speed and aim rate, peak frame-to-frame change) and the FKL frames for a sheet.
 3. **Publish** flat to the review folder (`SKILL.md` stage 13) and send the phone edit.
 4. **Review order:** the edit first for flow and cuts, then the flagged shots one at a time with the strip. Fix in the
-   rig, re-run QA, and re-playblast *every* shot: retimes change the cuts, and new in-betweens change what is visible.
+   rig, re-run QA and the composition re-gate (§7), and re-playblast *every* shot: retimes change the cuts, and new
+   in-betweens change what is visible.
 5. **Only then** re-run unseen-object trims on the final cameras (checked densely along the whole move) and render lit
-   animatics or finals (`editing.md` §7).
+   animatics or finals (`editing.md` §7). No lit rung starts before the playblast is approved: a full-rate act rendered
+   overnight before the motion review was thrown away when every camera changed the next morning.
 
 ## 5 · Traps
 - A playblast rendered before the cameras were rebuilt: compare file times, or the frame count against the camera file.
@@ -118,6 +151,7 @@ shots, not a few before/after clips:
 - A peak-normalised strip exaggerates tiny moves (0.5°/s looks like a wave): read the printed peak first.
 - Cuts that carry motion: the aim rate at the cut should continue into the next shot. Check it in the edit, where the
   per-shot clips can't show it.
+- A camera log rounded to 0.1 mm makes a constant move's speed plot jagged. Log cameras at µm (and rotations at µrad).
 
 ## 6 · The operator layer: imperfections a real operator makes (the default on top of simple moves)
 The user found the simple moves "unnaturally steady" and approved a layer of small, real-operator imperfections at the
@@ -164,3 +198,67 @@ the offset ≤ ~0.8 px; camera clearance unchanged (±2 mm) and ≥ 20 mm; no fr
 operator) with a motion strip on a fixed scale (the subject's offset in px, ±6 px; the speed deviation, ±3 %), plus
 each shot full size played A then B, and the edit. Then the user judges the amount; keep a gain control (1 = the
 approved amount).
+
+## 7 · Measure and gate (stage 9)
+**Why.** The user judges motion by eye, but a number catches a fault in every frame of every shot, including the ones
+nobody looked at. Every check below is computed from the per-frame data (the edit frames file, `greybox-animation.md`,
+the numeric hand-off) before any lit render, and printed as a table per shot and per cut. A fail is fixed, or kept
+only as an exception the user accepted in their own words (quoted next to it).
+
+**Per shot (from the cameras, before any render):**
+| Measure | Limit (rules of thumb at 1920 wide, 24 fps) | Method |
+|---|---|---|
+| the move's increment per frame, in its generator's own parameters (ln distance, angle, mm) | constant: ≤ 1e-6 rad and 1e-3 mm of variation | §3 |
+| generators | ≤ 2, a legal pair, secondary/primary ≤ 0.25; lens, roll and shift constant | §0 |
+| KEY | exact: ≤ 0.5 mm, 0.01° | §3 |
+| speed in the move's metric (%/s of the field, °/s, % W/s) and the aim rate | under the ceiling and the lens cap; max/min over the shot ≤ 1.10 outside the ease budget | §0, §3; `greybox-animation.md` speed table; `motion_qa.py shots` |
+| image flow | on the focus plane: target ≈ 5 px/frame, ceiling ≈ 11; on a defocused background: up to 2× | §3; `motion_qa.py shots` |
+| easing | none, or the ease budget's single profile on a named shot | §0 |
+| camera clearance to the set | ≥ 20 mm at every frame | §3 |
+| subject and focus targets | 0 occluded frames (every 6th frame sampled) | §3; `greybox-animation.md` per-frame checks |
+| FIRST and LAST against their approved stills | shift in % W and turn in ° reported; ≥ 10 % W re-shown | §0; `motion_qa.py shots --stills` |
+| the operator layer | the px gates of §6, KEY exact | §6; `motion_qa.py compare --mode operator` |
+| parts riding other parts | the sub-frame contact table | `greybox-animation.md` |
+
+**Per cut (from the edit frames file):** the assembly gate in `editing.md` §5 (runtime, the film's minimum shot, holds
+by type, similar neighbours, stills in a row, motion on both sides of a motion cut, state continuity), and the script
+matching the cut. The similarity rule comes straight from the cameras (`motion_qa.py cuts`).
+
+**The composition re-gate, after any camera or cut change.** A rebuilt move, an operator layer, a retime, a trim or a
+replaced shot changes the frames the viewer sees, and the stage-8 audit only covered the frames that existed then.
+Composition faults found by the user in the edit ("subject off centre", "these two should be one shot", "I can't see
+the cover there") were all in frames no gate had looked at. So, after every such change:
+1. List the frames per shot: the new FIRST and LAST, the edit's in and out frames, and every 12th frame between them
+   (`motion_qa.py regate`).
+2. Render them as grey previews from the current cameras and run the composition analysis on each
+   (`composition-analysis.md`; `scripts/comp_analysis.py frame`).
+3. Run the cut checks on the actual cut frames, the out frame of shot N against the in frame of shot N+1
+   (`comp_analysis.py cuts`), and the sameness check across the film (`comp_analysis.py sameness`).
+4. A frame that fails goes back to stage 8 (a new direction, rate or t_KEY, or a new composition), not forward to the
+   renders. After the fix, re-run this re-gate and the motion review (§4).
+
+**The camera proof, before any sequence render.** The final engine renders from packs baked from the cameras, so "is
+the approved camera in the final?" needs a printed answer. Compare every pack frame's camera matrix and focus distance
+with the approved camera source:
+- identical (≤ 1e-6) at every frame, handles included;
+- different from the previous camera version wherever a change was intended (for an operator layer: everywhere except
+  the KEY), and identical wherever none was.
+Read the packs' cameras back into the same per-frame JSON and run `motion_qa.py compare --mode proof` (source vs packs)
+and `--mode changed` (previous version vs packs). It prints per shot: frames compared, the largest difference, frames
+that differ. A pack that fails is re-baked from the source, never patched.
+
+**Tools.** `scripts/motion_qa.py` reads the edit frames file (or any per-frame cameras JSON) and prints PASS/FAIL
+tables:
+- `shots` on the base cameras: speed, aim rate, image flow on the focus plane and on a background plane, the speed's
+  max/min (shots in the ease budget or a named ride are `--exempt`), lens and shift constant; with `--stills`, FIRST,
+  KEY and LAST against the approved stills (shift in % W, turn in °, KEY exactness);
+- `compare --mode operator` (base vs operator cameras: the px gates of §6), `--mode proof` (the camera proof: packs
+  vs source, identical everywhere) and `--mode changed` (a new version differs everywhere except the KEY);
+- `cuts`: the similarity rule at every cut from the cameras (view angle, frame-width ratio);
+- `regate`: the frame list for the composition re-gate, as source and edit frames.
+
+Limits are rules of thumb; override them per film with `--set` and say so. The generator-increment and clearance checks
+need the rig's own parameters and the set's geometry, so they run in the rig module (§2, one module feeds every
+consumer). `scripts/comp_analysis.py` runs the composition re-gate on the frames `regate` lists.
+
+**Show:** the tables with the motion review (§4); every re-gate fail with its frame beside the approved still.

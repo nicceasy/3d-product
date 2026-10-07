@@ -88,7 +88,7 @@ Contents: 1 Light sources · 2 Light shaping · 3 Light colour · 4 Material · 
 ## 8 · Composition
 | Element | Expresses | Recipe | Fails when |
 |---|---|---|---|
-| Fill 20–45 % | object in space, calm | measure the product's share of the frame | < 15 % (lost) or > 60 % (cramped) |
+| Size by role | how close the film stands to the object: establishing, intimate, monumental | the band for the frame's role from the one size table (`composition-analysis.md`, size table; the brief overrides it); solve by fill, not field width | a size picked per frame by taste; the product filling the frame edge to edge with no ground (wallpaper) |
 | Family / multiples | a range, colourways, choice | staggered diagonal, one light for all | duplicate imports sharing mesh data (make each copy's data unique) |
 | Cutaway / exploded | engineering, what's inside | a half-section; explode along the product axis | cut faces unlit (light the section) |
 | Ground & horizon | place, weight | dark glossy floor for glass; a cyc for families | visible floor edges (use a cyc or wall) |
@@ -105,7 +105,8 @@ Contents: 1 Light sources · 2 Light shaping · 3 Light colour · 4 Material · 
 ## 10 · Geometry: what is physically possible to show
 - B-rep with named parts (materials, explodes, STEP). Prescription-driven optics; physics-driven dimensions.
 - Glass: closed, outward normals (lint), fused cemented pairs, ≥ 0.6 mm clearances, ≤ 0.05 mm chord.
-- Metal: 0.2 mm chord is enough; G2 corners are the open problem (OCCT fillets are G1).
+- Metal: tessellate by screen need (chord ≤ ¼ px at the part's closest framing, `hard-surface.md` §2b); G2 corners are
+  the open problem (OCCT fillets are G1).
 
 ## 10b · Surface, wear and lens character (detail: `hard-surface.md`, `wear-materials.md`, `camera-post.md`)
 | Element | Expresses | Recipe that works | Fails when |

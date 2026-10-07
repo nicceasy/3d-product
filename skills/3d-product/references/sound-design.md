@@ -1,12 +1,32 @@
 # Sound design and music for product films
 
-Stage 9.5 of `SKILL.md`: the sound is built once the cut is near final (it is spotted from the animation data) and
-locked before the final conform. The brief for the first film shaped it: sound tells the story, the music is the star,
-the world is barely there, and the sound moves the way the grade does, with soft transitions from shot to shot.
+Stage 9.5 of `SKILL.md`. The music map, any music seen on screen and the ending are decided early (§0); the sound itself
+is built on the near-final cut, spotted from the edit frames file, and locked before the final conform. The brief
+for the first film shaped it: sound tells the story, the music is the star, the world is barely there, and the sound
+moves the way the grade does, with soft transitions from shot to shot.
 
-Contents: 1 Research first · 2 The spotting sheet · 3 Layers and perspective · 4 Tonal beds and sweeteners ·
-5 Measure the music · 6 Music to picture · 7 AI music · 8 Generation artefacts · 9 Loudness architecture ·
-10 The ear · 11 Assembly, the master and the conform · 12 Review and gate
+Contents: 0 When the music is decided · 1 Research first · 2 The spotting sheet · 3 Layers and perspective ·
+4 Tonal beds and sweeteners · 5 Measure the music · 6 Music to picture · 7 AI music · 8 Generation artefacts ·
+9 Loudness architecture · 10 The ear · 11 Assembly, the master and the conform · 12 Measure and gate
+
+## 0. When the music is decided (the order)
+**Why:** music decides things the picture can't change cheaply later: art the camera sees, the length of the end hold
+(and so the final shot's render), and where phrases land against cuts. Music that arrived after picture lock cost
+re-renders of every frame showing it, a re-render of the final shot, and a request for cuts in rhythm after the cut was
+locked.
+1. **Pick the order.** A short film cut to a beat (a teaser) is **music-first**: plan the shots on the grid
+   (`animation.md` §1–2). A film timed by its mechanisms is **picture-first**: the mechanisms set irregular gaps that no
+   constant tempo fits (§6), so the picture leads and the music is fitted.
+2. **The music map goes to the user before the first build** ★: where music plays, stops and changes, and why, read
+   from the script's story clock, plus the beds by time of day and the transitions. A map that started the music late
+   was rejected outright ("the music should be playing from the beginning").
+3. **A temp track or the music map with a tempo map at the animatic** (from the FKL rung, `editing.md` §7). Constant
+   moves with handles let a cut slide a few frames for free, so phrase landings are matched before the finals.
+4. **Music seen on screen is chosen with the shot list** (stage 7). A label, a display or a playlist in frame is art the
+   camera sees; until it is picked, its shots stay out of the final renders.
+5. **The ending sets the end hold.** The final shot plays through the ring-out (`editing.md` §10). Render it with ~1 s
+   of margin past the expected ring-out, or after the ending locks; a swapped song changes that render.
+6. **Then build on the near-final cut**, spotted from its edit frames file (§2).
 
 ## 1. Research first
 **Why:** sound has its own craft (spotting, worldizing, loudness), and its sources carry licences; guessing costs
@@ -33,10 +53,16 @@ the cut.
   camera's distance to its part (for perspective) and whether it is on screen.
 - **Events hard-sync: on their frame or up to one frame late, never early** (audio leading picture by more than about
   45 ms is detected; one frame is 42 ms at 24 fps).
+- **Regenerate the sheet for every edit version** from that version's edit frames file (`greybox-animation.md`, the
+  numeric hand-off), and place mix events by their id, not by a time, so a replaced or retimed shot re-places its own
+  events. A hand-moved event is a bug: it was how picture and sound drifted apart after a shot was replaced.
+- **A synced event is a chain:** the picture's mechanism → the music's stop or start → its foley → the next bed's
+  entry. A note that moves one link (end a song later, move a tick) lists the others and either moves the whole chain
+  or asks before building. Report any link left out of sync in the delivery note.
 - The sound follows the story clock. If a picture insert contradicts it (a rotor spinning before its switch), fix the
   picture state, not the sound.
-- Write a one-page sound script before building: the story in sound, the music map (where music plays, stops and
-  changes), the beds by time of day, the events, the transitions.
+- Write a one-page sound script before building: the story in sound, the music map (§0), the beds by time of day, the
+  events, the transitions.
 
 ## 3. Layers, perspective and transitions
 - **Everything caused, nothing invented.** Mechanism sounds are hyper-real but small and true: short, dry, low-mid,
@@ -69,9 +95,11 @@ reads as noise, and a phrased pad competes with the music.
   flatness ≤ ~0.003, harmonic share (HPSS) ≥ ~0.98; reference reveal films put 20–70 % of the bed's energy below 80 Hz.
 - **Openings build from silence** (reference films take 3–20 s to reach full level). **Endings are tails, not fades:**
   0.3–2 s of natural ring after the last event, then silence under the end card.
-- **Sparse events:** natural sounds in the bed (birds, distant life) are far, soft (~9 dB under the bed), high and in
-  key, each at least 2–3× its own length of silence apart, fewer as the light fades, none at night. Measure each
-  placed event's own loudness: a layer normalised on its loudest call can leave the others silent.
+- **Sparse events:** natural sounds in the bed (birds, distant life) are far, soft, high and in key, each at least
+  2–3× its own length of silence apart, fewer as the light fades, none at night. Start the layer about 27 dB under the
+  bed's energy over the same span and let the user raise it (measured: the user lowered such a layer twice, from about
+  −21 dB to about −27 dB). Measure each placed event's own loudness: a layer normalised on its loudest call can leave
+  the others silent.
 - **Sweeteners in key:** retune product events and natural calls to the nearest scale tone, or give a click a short
   tuned tail; reference films keep 80–97 % of transients in the score's scale (chance ≈ 58 %). One sweetener marks the
   story's key moment (a light coming on); the rest of a light change is carried by the bed's filter and density.
@@ -117,9 +145,9 @@ musical quality of these options is not good. Focus on making something good").
 4. **Present raw takes to the user by ear before fitting anything** (audio only, as they land, when the user asks).
    Fitting to picture comes after the pick.
 5. **Fit phrase-aware with no stretch:** start the take at its own beginning (or a real downbeat), place it so a phrase
-   landing falls on the story beat it must hit (within a frame or two), let the ending ring, and **hold the end card**
-   until the ring-out ends rather than fading the music early. If a stretch is unavoidable, one constant stretch on the
-   whole segment (a few percent), never a splice inside a phrase.
+   landing falls on the story beat it must hit (within a frame or two), and let the ending ring: the picture plays
+   through the ring-out (`editing.md` §10) rather than the music fading early. If a stretch is unavoidable, one
+   constant stretch on the whole segment (a few percent), never a splice inside a phrase.
 6. AI image passes stay out of the pipeline; AI audio generation is in, by the user's choice.
 
 ## 8. Fixing generation artefacts
@@ -139,21 +167,59 @@ musical quality of these options is not good. Focus on making something good").
      equal-power crossfade.
 - A/B the last 10 s (before, a second of silence, after) and let the user judge by ear.
 
+**A fault inside the body** (an instrument entering with a pumping vibrato or a bow that doesn't catch). Regenerating
+throws away a take the user likes, so fix the one line and keep the rest:
+1. Take the time of the fault from the user, then find the line by measurement: separate the harmonic part (HPSS) and
+   take a morphological opening against what was sounding before the line enters, so only the new line remains.
+2. Build four options side by side: the line smoothed (its vibrato and level wobble flattened); tucked (−6 dB);
+   removed; resynthesised as clean partials (its measured pitches and levels, with a gentle new vibrato).
+3. Keep everything outside the line sample-identical to the take (prove it with a null test).
+4. The user picks by ear. The pick goes into the mix as a new version; the take itself stays untouched.
+
 ## 9. Loudness architecture
 **Why:** the author's notes on the mixes were all about level movement ("too loud compared to the interstitial
-moments", "avoid big changes in volume", "come in quieter and build up over a couple seconds"), not the integrated
-number.
+moments", "avoid big changes in volume", "come in quieter and build up over a couple seconds", "come in almost
+inaudibly and fade up over two seconds"), not the integrated number. The same notes pushed the quiet parts further
+under the songs than any range limit allowed: what the ear objects to is a step or a sudden entry, not the distance
+between a quiet part and a loud one. So gate the steps and the entries, and report the range.
 - **Master:** stereo, 48 kHz / 24-bit, −16 LUFS integrated (the streaming window's upper end; platforms turn louder
   content down), true peak ≤ −1 dBTP (≤ −1.5 to −1.9 with AAC encode headroom). Check the mono fold-down (phones sum to
   mono).
-- **Short-term (3 s) loudness within about 6 LU across the body of the film, and no change above about 3 LU per second
-  at transitions.** Music sits close to the beds for a calm film (the approved mix had the songs about 1 LU over the
-  beds); reference reveal films enter music about 10 LU over a bed, so decide the offset with the user.
+- **Steps:** no change of short-term (3 s) loudness above ~3 LU per second at any transition.
+- **Entries:** every entry after a song or a near-silence starts at ≤ −30 to −40 dB and rises over ~2 s on a raised
+  cosine in dB (the author's settled preference, after three notes asking for softer entries). An entry that is hard on
+  purpose (music starting on a cut or on a mechanism) is named as an exception, and its step still has to pass or be
+  shown to the user.
+- **The range is information.** Quiet interstitials may sit ~5–7 LU under the songs (measured on an approved calm
+  film). Reference reveal films enter music about 10 LU over a bed. Decide the offset with the user; report the
+  short-term range with every version.
 - **A quiet beat is a gentle dip (~1–3 LU), not a hole.**
-- **Entry ramps:** a bed that returns after music starts about 8 dB down and rises over ~2.5 s.
+- **A note that lowers a bed raises the next step.** When a level note lowers a bed, re-check the step into the next
+  loud entry (measured: a bed lowered 4 dB doubled the step into the following song, ~3.1 → ~6.2 LU/s). Fix it with a
+  1–2 s rise on that entry, or lift the bed's last ~2 s, and say which in the delivery note.
 - **Shape it with constant gains per component and a few slow rides, not compression.**
-- Measure with `scripts/loudness_profile.py` (integrated, true peak, LRA, the short-term curve with the film's marks,
-  the range, the steps and the dips, PASS/FAIL against these rules; a PNG to send with every update).
+
+**Notes → numbers.** Turn each verbal level note into a number on the layer it names, and write the interpretation
+next to the note in the version's notes. Defaults (judgement; write down which you applied):
+| The note | The number |
+|---|---|
+| "half", "by half" | −6 dB |
+| "a bit", "a little" | −2 to −3 dB |
+| "quieter at the start, build up over a couple of seconds" | start ~8 dB down, rise over ~2–2.5 s; if the note comes back, go to the next row |
+| "almost inaudibly, then fade up over N s" | start at ≤ −30 to −40 dB, a raised cosine in dB over N s |
+| "end it N s later" (or earlier) | move that event N s, and flag its chain (§2) |
+1. **The named layer only.** Rebuild that layer exactly and change its gain; prove the rest is unchanged (a null test
+   against the previous version outside the changed spans: ~90 dB or more down, measured on a stem-level remix). Never
+   EQ or ride the whole part for a note about one layer.
+2. **Report the result in the master:** each changed layer's measured net dB, and any step or entry the change made
+   worse.
+3. **Ambiguous note, explicit choice:** if the note could mean more than one layer or span, say which one you chose
+   and offer the other.
+
+Measure every version with `scripts/loudness_profile.py`: integrated loudness, true peak and LRA; the short-term curve
+with the film's marks; the steps (gated, 3.5 LU/s by default); the quiet dips (gated); every entry after near-silence
+(gated: a measured rise ≥ 1.2 s, which is about a 1.5 s raised-cosine rise from −40 dB; aim for 2 s); the short-term
+range (reported; `--st-range` makes it a gate). It writes a JSON and a PNG to send with every update.
 
 ## 10. The ear: triage by AI, the decision by the user
 - An AI listener is useful triage: it catches vocals on an instrumental brief, forbidden instruments, a missed genre,
@@ -166,20 +232,41 @@ number.
 - Build the mix in code from a component spec (stems, placements, gains, rides, ramps) with the per-frame data; the
   editing tool hosts the stems for review (an edit tool's scripting API often can't automate volume curves, EQ or
   plug-ins). Scripts refuse to overwrite: a new version folder per build.
-- Write stems at the master gain, taken before the limiter, that sum to the master (check the correlation).
+- Write stems at the master gain, taken before the limiter, that sum to the master: residual ≤ ~−50 dB RMS against the
+  master, correlation ≥ 0.999 (measured on a locked mix).
 - **The limiter-latency trap:** a look-ahead limiter delays the master by its look-ahead (1 ms = 48 samples at 48 kHz).
-  Remove the measured delay so the master lines up with the stems and the picture.
+  Measure the delay by cross-correlating the master with the stems' sum, and remove it so the master lines up with the
+  stems and the picture (0 samples after removal).
 - Don't trim layers to another layer's length (a ring-out vanished when the music was cut to its texture stem's end).
-- **Conform with an end hold:** when the mix rings past the cut, the picture holds its last frame for
-  ceil(mix length × fps) − cut frames, fades to black over the last ~1.5 s, and the mix is padded or trimmed to the
-  new length; the cut frames are still asserted. The conform runs automatically after the picture conform
-  (`render-supervision.md`).
+- **Conform to the mix length:** when the mix rings past the cut, the film runs ceil(mix length × fps) frames. The
+  picture is the final shot playing through the hold (`editing.md` §10), with a fade to black over the last ~1.5 s; the
+  mix is padded or trimmed to the same length, and the cut frames are still asserted. A frozen last frame is the
+  fallback only when the extension couldn't be rendered. The conform runs automatically after the picture conform
+  (`render-supervision.md`) and writes a new versioned output, never over an old one.
 
-## 12. Review and gate
+## 12. Measure and gate (stage 9.5)
 - **Deliver the first complete build immediately, then iterate** (a user waited ~40 min while an agent iterated on a
   metric unseen). A v0 with placeholder sounds within the hour proves sync and the arc; real assets follow.
 - Every update: the mix on the latest picture (a clean version, a burn-in version with shot ids and timecode, a phone
-  copy) plus the loudness PNG with the marks.
-- **Gate:** events on their frames (0 to +1 frame), music key and tuning measured and the beds tuned to them, the
-  loudness profile passes, no artefact the user hears, stems sum to the master, ★ the user approves the lock by ear.
-  Freeze the lock as a named version; later changes are new lock versions.
+  copy) plus the loudness PNG with the marks and the gate table below.
+- **Run the gate on every version, notes revisions included.** A revision that only follows the user's notes is still
+  measured: a note can break a gate the previous version passed (§9).
+
+**The gate (measured, printed per version):**
+| Measure | Limit | Method |
+|---|---|---|
+| events against the current edit's spotting sheet | 0 to +1 frame, every event | §2 (regenerated from the current edit frames file) |
+| synced chains | every link in sync, or flagged in the note | §2 |
+| every music take's key, tuning and tempo | key confidence > 0.7; tuning spread ≤ ~3–5 c; tempo drift ≤ ~2–3 %; beds and sweeteners tuned to the measured key | §5 |
+| integrated loudness | −16 ± 0.5 LUFS | `scripts/loudness_profile.py` |
+| true peak | ≤ −1 dBTP | `loudness_profile.py` |
+| steps at transitions | ≤ ~3 LU/s (gate 3.5) | `loudness_profile.py`, with the film's marks |
+| entries after near-silence | measured rise ≥ 1.2 s, or a named exception | `loudness_profile.py` |
+| quiet beats | dips ≤ ~4 LU | `loudness_profile.py --quiet` |
+| short-term range | reported, not gated | `loudness_profile.py` |
+| stems against the master | residual ≤ ~−50 dB RMS, correlation ≥ 0.999 | a null test (§11) |
+| limiter latency | 0 samples after removal | cross-correlation (§11) |
+| artefacts | none the user hears; decay metrics reported when a tail is in question | §8, §10 |
+
+- A fail caused by a user's note is reported with its fix (or with the choice it needs), never hidden.
+- ★ The user approves the lock by ear. Freeze the lock as a named version; later changes are new lock versions.

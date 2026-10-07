@@ -10,7 +10,8 @@ Measured on 18 apple.com newsroom hero images (reference only — never publish 
    outline.
 4. **Reflections** — one smooth gradient per face; dark cards where the form needs them; no environment clutter.
 5. **Camera** — vertical convergence ≤ 0.5°; height at the midline to 10° above; DOF only in macro.
-6. **Composition** — centred hero filling 55–78 % of frame height, or a deliberate edge crop; generous negative space.
+6. **Composition** — centred hero, or a deliberate edge crop; size from the packshot row of the one size table
+   (`composition-analysis.md`, size table; that row was measured on these references); generous negative space.
 7. **Materials** — grainless bead-blast sheen, low-chroma anodising, knit cells resolved, frosted glass, chamfers
    catching light.
 8. **Grounding & cleanliness** — floating or a tiny contact shade; no noise or fireflies; greys neutral within ±3 RGB.

@@ -2,24 +2,39 @@
 """loudness_profile.py - check a film mix's loudness architecture (ITU-R BS.1770 / EBU R128 style), read-only.
 
 Why: a film's sound is judged by how its loudness moves, not only by its integrated level. A mix can hit -16 LUFS-I and
-still jump 20 LU between a quiet bed and a song, or fall into a hole at a quiet beat. This prints the numbers the
-sound gates use (sound-design.md, "Loudness architecture") and draws the short-term curve with the film's marks.
+still jump between a quiet bed and a song, or pop in after a silence. Listeners hear the steps, not the range: a quiet
+interstitial well under the songs is fine if every way into and out of it is gentle. So this gates the steps and the
+entries, and reports the range as information (sound-design.md, "Loudness architecture"). It draws the short-term
+curve with the film's marks and the measured entries.
 
 Measures:
   integrated loudness (gated, LUFS-I), true peak (4x oversampled, dBTP), loudness range (EBU 3342 style, LU),
-  short-term (3 s) and momentary (0.4 s) loudness at 10 Hz, each time-stamped at its window's centre,
-  inside a body window: the short-term range (max - min, LU) and its p5-p95 spread,
-  the largest change of short-term loudness over 1 s (LU/s), overall and around each mark,
-  for each quiet range: its dip below the median of the 5 s on either side (a gentle dip, not a hole).
+  short-term (3 s) and momentary (0.4 s) loudness, each time-stamped at its window's centre,
+  inside a body window: the short-term range (max - min, LU) and its p5-p95 spread (advisory unless --st-range is set),
+  the largest change of short-term loudness over 1 s (LU/s), overall and around each mark (gated),
+  for each quiet range: its dip below the median of the 5 s on either side (a gentle dip, not a hole; gated),
+  every entry after near-silence (momentary at least --silence LU under the integrated level for >= 0.2 s, then
+  sound that stays up for >= 1.5 s), including the film's first sound: its rise time, from the momentary leaving the
+  floor (floor + 3 LU) to arriving within 1 LU of its settled level (the median 2.5-4.5 s later) (gated).
+
+Calibration of the measured rise (the part of a ramp heard above the floor, so it reads shorter than the ramp):
+on synthetic ramps with the bed 37 LU over room tone, a hard entry reads ~0.35 s, a raised-cosine-in-dB ramp from
+-40 dB over 1 s ~0.85 s, over 1.5 s ~1.2 s, over 2 s ~1.55 s, and a 2 s linear-amplitude fade ~1.95 s; a real mix's
+2 s raised-cosine entry from -40 dB read 1.45 s. The default --entry-min 1.2 s therefore asks for at least a ~1.5 s
+raised-cosine rise from about -40 dB; aim for ~2 s.
 
 Usage:
   python3 loudness_profile.py mix.wav [--window 6,55] [--marks "12.0:music in,31.5:music out,58.0:end card"]
-        [--quiet 36-38] [--target-i -16] [--tp-max -1.0] [--st-range 6.5] [--max-step 3.5] [--dip-max 4]
+        [--quiet 36-38] [--target-i -16] [--tp-max -1.0] [--max-step 3.5] [--dip-max 4]
+        [--silence 20] [--entry-min 1.2] [--entry-ok "0.0,41.2"] [--st-range 6.5]
         [--json report.json] [--png profile.png]
+  --st-range turns the short-term range into a gate (off by default: reported only).
+  --entry-ok names entries that are hard on purpose (within 0.5 s of each time): reported, not gated.
 Exit code: 0 when every gate passes, 1 when any fails, 2 on a read error.
 
 Requires numpy and scipy; soundfile and matplotlib are optional (WAV via scipy otherwise; no PNG without matplotlib).
-Defaults are rules of thumb from a calm product film ("avoid big changes in volume"); set your own per film.
+Defaults are rules of thumb from a calm product film ("avoid big changes in volume", "come in almost inaudibly
+and fade up"); set your own per film.
 """
 import argparse
 import json
@@ -169,6 +184,57 @@ def step_per_s(t, v, hop_s):
     return d
 
 
+def find_entries(t, m, hop_s, quiet_below, min_quiet_s=0.2, min_up_s=1.5, min_rise_lu=10.0):
+    """Entries after near-silence on the momentary curve m (LUFS at times t, hop hop_s).
+
+    A near-silent run (m <= quiet_below for >= min_quiet_s) followed by sound that stays above quiet_below for
+    >= min_up_s is an entry; so is the film's first sound when the file doesn't open in near-silence. For each entry:
+    floor = the 10th percentile of the run's last 3 s (or -70 at the file's start), settled = the median 2.5-4.5 s
+    after the crossing; the rise runs from the last frame at floor + 3 LU to the first frame within 1 LU of settled.
+    A rise smaller than min_rise_lu (floor to settled) is not an entry."""
+    m = np.maximum(m, -70.0)
+    n = len(m)
+    quiet = m <= quiet_below
+    up_n = int(round(min_up_s / hop_s))
+    runs = []                                   # (run start index, crossing index j)
+    if n and not quiet[0]:
+        runs.append((None, 0))                  # the film opens without a near-silent run
+    i = 0
+    while i < n:
+        if quiet[i]:
+            j = i
+            while j < n and quiet[j]:
+                j += 1
+            if (j - i) * hop_s >= min_quiet_s and j < n:
+                runs.append((i, j))
+            i = j
+        else:
+            i += 1
+    out = []
+    for i0, j in runs:
+        if j + up_n > n or quiet[j:j + up_n].any():
+            continue                            # a tick in the silence, not an entry
+        if i0 is None:
+            floor = -70.0
+        else:                                   # low percentile: the run's tail may already hold the ramp's start
+            k0 = max(i0, j - int(round(3.0 / hop_s)))
+            floor = float(np.percentile(m[k0:j], 10))
+        win = (t >= t[j] + 2.5) & (t <= t[j] + 4.5)
+        settled = float(np.median(m[win])) if win.any() else float(np.max(m[j:]))
+        if settled - floor < min_rise_lu:
+            continue
+        arrive = np.nonzero(m[j:] >= settled - 1.0)[0]
+        if not arrive.size:
+            continue
+        b = j + int(arrive[0])
+        leave = np.nonzero(m[:b + 1] <= floor + 3.0)[0]
+        a = int(leave[-1]) if leave.size else (0 if i0 is None else j)
+        out.append({"t_leave_s": round(float(t[a]), 2), "t_arrive_s": round(float(t[b]), 2),
+                    "rise_s": round(float(t[b] - t[a]), 2), "floor_LUFS": round(floor, 1),
+                    "settled_LUFS": round(settled, 1), "opening": i0 is None or i0 == 0})
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("wav")
@@ -178,9 +244,15 @@ def main():
     ap.add_argument("--target-i", type=float, default=-16.0)
     ap.add_argument("--i-tol", type=float, default=0.5)
     ap.add_argument("--tp-max", type=float, default=-1.0)
-    ap.add_argument("--st-range", type=float, default=6.5, help="max short-term range in the window, LU (about 6)")
+    ap.add_argument("--st-range", type=float, default=None,
+                    help="gate the short-term range in the window at this many LU (default: reported only)")
     ap.add_argument("--max-step", type=float, default=3.5, help="max change of short-term loudness over 1 s, LU (about 3)")
     ap.add_argument("--dip-max", type=float, default=4.0, help="max dip of a quiet range below its surroundings, LU")
+    ap.add_argument("--silence", type=float, default=20.0,
+                    help="near-silence = momentary at least this many LU under the integrated level")
+    ap.add_argument("--entry-min", type=float, default=1.2,
+                    help="min measured rise of an entry after near-silence, s (1.2 ~ a 1.5 s raised-cosine rise from -40 dB)")
+    ap.add_argument("--entry-ok", default="", help='"t,t": entries that are hard on purpose (+-0.5 s), reported only')
     ap.add_argument("--json", default=None)
     ap.add_argument("--png", default=None)
     a = ap.parse_args()
@@ -232,24 +304,40 @@ def main():
             dip = float(np.median(st[around]) - np.median(st[inside]))
             dips.append({"range": [q0, q1], "dip_LU": round(dip, 2), "pass": dip <= a.dip_max})
 
+    # entries after near-silence, on a finer momentary curve (20 Hz)
+    hop_e = 0.05
+    t_e, mo_e, _ = windowed_loudness(z_cum, fs, 0.4, hop_e, g, centred=True)
+    ok_times = [float(v) for v in a.entry_ok.split(",") if v.strip()]
+    entries = find_entries(t_e, mo_e, hop_e, i_lufs - a.silence)
+    for e in entries:
+        e["named_exception"] = any(abs(e["t_leave_s"] - tk) <= 0.5 or abs(e["t_arrive_s"] - tk) <= 0.5
+                                   for tk in ok_times)
+        e["pass"] = e["named_exception"] or e["rise_s"] >= a.entry_min
+
     gates = {
         "integrated": abs(i_lufs - a.target_i) <= a.i_tol,
         "true_peak": tp <= a.tp_max,
-        "st_range": st_range <= a.st_range,
         "max_step": max_step <= a.max_step,
         "dips": all(d["pass"] for d in dips),
+        "entry_ramps": all(e["pass"] for e in entries),
     }
+    if a.st_range is not None:
+        gates["st_range"] = st_range <= a.st_range
     rep = {
         "file": a.wav, "fs": fs, "channels": int(x.shape[1]), "duration_s": round(dur, 3),
         "integrated_LUFS": round(i_lufs, 2), "true_peak_dBTP": round(tp, 2), "LRA_LU": round(lra, 2),
         "window_s": [w0, w1], "st_max": round(float(st_w.max()), 2) if st_w.size else None,
         "st_min": round(float(st_w.min()), 2) if st_w.size else None,
         "st_range_LU": round(st_range, 2), "st_p5_p95_LU": round(st_p5_p95, 2),
+        "st_range_gated": a.st_range is not None,
         "st_max_step_LU_per_s": round(max_step, 2), "st_max_step_at_s": max_step_at,
         "marks": mark_rows, "quiet_dips": dips,
+        "near_silence_below_LUFS": round(i_lufs - a.silence, 1), "entries": entries,
         "limits": {"target_i": a.target_i, "i_tol": a.i_tol, "tp_max": a.tp_max, "st_range": a.st_range,
-                   "max_step": a.max_step, "dip_max": a.dip_max},
+                   "max_step": a.max_step, "dip_max": a.dip_max, "silence_LU": a.silence,
+                   "entry_min_s": a.entry_min, "entry_ok": ok_times},
         "gates": gates, "pass": all(gates.values()),
+        "failed": [k for k, v in gates.items() if not v],
     }
     txt = json.dumps(rep, indent=1)
     print(txt)
@@ -269,23 +357,34 @@ def main():
             ax.plot(t_m, mo, color="0.75", lw=0.6, label="momentary (0.4 s)")
             ax.plot(t_st, st, color="tab:blue", lw=1.6, label="short-term (3 s)")
             ax.axvspan(w0, w1, color="tab:green", alpha=0.05, label="gate window")
-            if st_w.size:
+            if st_w.size and a.st_range is not None:
                 ax.axhline(st_w.max(), color="tab:green", lw=0.6, ls=":")
                 ax.axhline(st_w.max() - a.st_range, color="tab:red", lw=0.6, ls=":",
                            label=f"range limit {a.st_range:g} LU")
+            if max_step_at is not None:
+                ax.axvline(max_step_at, color="tab:red" if max_step > a.max_step else "tab:green", lw=1.0, ls="--",
+                           label=f"max step {max_step:.1f} LU/s")
             for q0, q1 in parse_ranges(a.quiet):
                 ax.axvspan(q0, q1, color="tab:orange", alpha=0.15)
+            for k, e in enumerate(entries):
+                ax.axvspan(e["t_leave_s"], e["t_arrive_s"], color="tab:green" if e["pass"] else "tab:red",
+                           alpha=0.25, label="entry rise (pass / fail)" if k == 0 else None)
             for tm, label in marks:
                 ax.axvline(tm, color="0.3", lw=0.6)
                 ax.text(tm, (st_w.max() + 3) if st_w.size else -10, label, rotation=90, va="bottom", ha="right",
                         fontsize=7)
-            ax.set_ylim(max(-60, (st_w.min() - 12) if st_w.size else -60), (st_w.max() + 9) if st_w.size else 0)
+            y_lo = max(-60, (st_w.min() - 12) if st_w.size else -60)
+            if entries:                         # show each entry's floor
+                y_lo = min(y_lo, max(-72, min(e["floor_LUFS"] for e in entries) - 3))
+            ax.set_ylim(y_lo, (st_w.max() + 9) if st_w.size else 0)
             ax.set_xlim(0, dur)
             ax.set_xlabel("film time (s)")
             ax.set_ylabel("LUFS")
+            n_bad = sum(1 for e in entries if not e["pass"])
             ax.set_title(f"{a.wav.split('/')[-1]}  I {i_lufs:.1f} LUFS  TP {tp:.1f} dBTP  "
-                         f"ST range {st_range:.1f} LU  max step {max_step:.1f} LU/s  "
-                         f"{'PASS' if rep['pass'] else 'FAIL'}", fontsize=9)
+                         f"ST range {st_range:.1f} LU{'' if a.st_range is not None else ' (info)'}  "
+                         f"max step {max_step:.1f} LU/s  entries {len(entries) - n_bad}/{len(entries)} ramped  "
+                         f"{'PASS' if rep['pass'] else 'FAIL: ' + ', '.join(rep['failed'])}", fontsize=9)
             ax.legend(loc="lower left", fontsize=7)
             ax.grid(alpha=0.2)
             fig.tight_layout()

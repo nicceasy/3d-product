@@ -19,6 +19,8 @@ The user's rules (standing):
 - **No interpenetration.** Touching or very close is fine; intersecting is not. Check it automatically (§5, §10).
 - **Every environment gets the full realism process**, and research is always paired with reference images.
 - **Props age; the product doesn't.** The product is rendered as designed (`wear-materials.md`).
+- **Keep the scene light from the first import** (§3b). Weight is decided when an asset enters the set; trimming a
+  dressed set at the end saves little and breaks shots.
 
 ## 0. Pick the lane (branch)
 | Lane | When | The set's "history" | Aging budget |
@@ -26,7 +28,7 @@ The user's rules (standing):
 | **A. Lived-in photoreal** | lifestyle, "in its place", editorial, storyboards | a set bible: who, what just happened, time stack | the room carries wear, dust and use; the product stays as designed |
 | **B. Stylised-but-alive** (the Apple lane) | packshots, studio, abstract sets, launch films | a *fabrication story*: how the set would really be built (painted cyc with a real cove radius, CNC plinth, microcement) | roughness breakup 2–5 %, faint seams at sheet widths (~1.2 × 2.4 m), soft contact dust at plinth bases |
 
-Both lanes share steps 3 and 5–10. In lane B, physics still lives in materials and light, and the abstraction lives
+Both lanes share steps 3, 3b and 5–11. In lane B, physics still lives in materials and light, and the abstraction lives
 in the environment and motion. Natural elements inside an abstract set follow full photoreal logic.
 
 ## 1. ★ Write the bible before you build (lane A) or the fabrication story (lane B)
@@ -59,7 +61,9 @@ re-measure for a different kind of place.
 ## 3. ★ Assets: real statistics, a complete shell, your own hero supports
 - **Kit assets (a kit-asset library through its desktop downloader app).** There may be no MCP; drive the app through
   background app control.
-  - Settings: target the Blender version in use, textures **4k png**. Record where downloads land in the site profile.
+  - Settings: target the Blender version in use. Download the texture resolution the tool offers (a high-resolution
+    set is fine on disk), but **load the variant each asset's role needs** (§3b), never one size for everything.
+    Record where downloads land in the site profile.
   - Search boxes: clear the field with the ✕ first, or type with `overwrite_existing`, because positional insert fails
     in the background.
   - Kits are 1–2.5 GB each. The download icon sits at the card's lower right.
@@ -68,9 +72,11 @@ re-measure for a different kind of place.
   network as a Principled BSDF:
   - map base colour × base, metalness, roughness, IOR, coat, sheen, subsurface, transmission, emission, opacity →
     alpha, normal map, height → bump;
-  - turn architectural glass into a thin pane (§6);
+  - turn architectural glass into a thin pane (§6), including kit glass that drives transmission from a map (a thin
+    pane by that map);
+  - audit kit emitters (§3b);
   - print the converted materials and look for any left unconverted (an instanceable material not un-instanced).
-- **Build the whole architecture** (Jack Fisk: build for 360°).
+- **Build the whole architecture** (build for 360°).
   - A complete room gives real bounce, real reflections and a reverse angle for free.
   - Outside the windows, place real things at real distances (in a city: street trees at 8–15 m, buildings across the
     street at 25–40 m, a ground plane at street level). Never leave an HDRI's synthetic lower hemisphere in the view.
@@ -84,8 +90,70 @@ re-measure for a different kind of place.
     tint the veneer to its finish (oil darkens and warms).
 - **Measure a kit material's albedo before trusting its name.** A material named for one species can be another
   colour entirely, and tinting won't rescue it. Open the base colour map and check its linear mean and p5–p95
-  luminance against the real material (oiled walnut or teak runs about 0.03–0.12 linear); swap the texture if it
-  misses. Name the material in the bible after what it *looks* like.
+  luminance against the real material's reflectance, taken from a cited source (an LRV, a manufacturer's value) or from
+  the measured mean of reference photos under neutral light. Write the target in sRGB and linear. Measured in kit
+  libraries, errors ran 2–3× in both directions: an oiled mid-tone wood such as teak measured ~0.15–0.24 linear (LRV
+  ≈ 23 and a photo mean) against 0.07 in render; a kit "white" paint sat at 0.41 against 0.80–0.85 real. Regrade or
+  swap the texture to the measured mean, keeping its own contrast; never a chain of brightness and saturation tweaks
+  (`reference-detailing.md`). Name the material in the bible after what it *looks* like. The in-render audit (§10.2)
+  checks the result in the light.
+
+## 3b. ★ Keep it light from the first import (pre-flight and budget)
+Weight is decided when an asset enters the set, and it is found at the first final render, where fixing it changes
+approved looks. You can't trim your way out of a heavy set afterwards: a glossy product and its glass mirror most of
+the room, so audited trims of a dressed room saved only 3–7 % (measured). Build it light instead. Measured once: a room
+dressed without a budget needed about twice a 24 GB card and rendered out of core; after optimisation the same room
+used ~8 GB.
+
+The budget (its numbers and the `budget.json` format) comes from the setup probe: `scene-optimisation.md` §0. The
+probe tool is `scripts/scene_weight.py` (read-only).
+1. **Probe every asset as it enters** (kit model, generated prop, exterior block): import it into an empty probe file
+   and run `scene_weight.py` on it. Record:
+   - triangles;
+   - separate objects and duplicate groups;
+   - materials and distinct shader programs, procedural nodes;
+   - images: count, megapixels, bit depth, channels;
+   - emissive materials and their emitting area;
+   - glass layers.
+2. **Keep a running budget table:** one line per asset, plus the set's total from `scene_weight.py --budget` (estimated
+   GPU memory, objects, shader programs, emitters) and the preview seconds per frame. Flag every line over budget as it
+   lands, not at the end.
+3. **Load texture variants by role:**
+   - product, prints, labels, HDRI: full size;
+   - hero props near the product: 2–4K;
+   - set dressing: 2K;
+   - background, reflection-only and never-framed objects: 1K.
+
+   Greyscale maps (roughness, metallic, height, masks) stay single-channel, 16-bit at most; a height map that only
+   feeds bump needs no 32-bit float. Final sizes by on-screen need come once the cameras are final
+   (`scene-optimisation.md`). Measured: one size (4K) for everything put a room at ~50 GB, and most of its large images
+   were 32-bit height maps feeding bump.
+4. **Flag heavy assets** (over the budget's single-asset line). Prefer a lighter variant, or a proxy that keeps the
+   asset's job: a low-poly shade with an opacity map, or a measured emission for a shade that shapes a lamp's light.
+   A/B the light it casts before swapping. Measured once: one never-framed woven shade was 46 % of a room's triangles
+   and cost 8–10 s per render session.
+5. **Instance repeats.** One mesh per duplicate group (books, cups, chairs, generated items). Join static clusters
+   per material where no object-space pattern depends on the object. Why: some renderers pay per separate object per
+   session (measured: ~55 ms each).
+6. **Store per-instance variation as data the final engine reads:** an attribute or a UV offset baked per instance,
+   not object-info randomness or shared generated coordinates. Measured: hundreds of meshes that used object info took
+   the first mesh's values after conversion to another engine.
+7. **Kit glass and kit emitters, at import.** Kit glass becomes a thin pane (§3, §6). List every emissive material
+   with its share of non-black texels: a zero-emission convention costs nothing, but a near-black emission texture is
+   a mesh light that lights nothing, so take it out of light sampling (`lighting.md` §8). Measured once: two kit
+   emitters' maps were 99 % black.
+8. **Delete what the bible excludes, at build** (rooms and fixtures no planned camera sees or mirrors, props that
+   fail the bible), and purge unused data blocks after each import. Expect a small saving in an open, glossy room (measured: unseen rooms were ~1 % of
+   the triangles). The real savings are texture sizes, shaders, emitters and single heavy assets.
+9. **Never remove the enclosure or the outdoors for weight.** They shade and bounce: removing an unseen street and
+   floor lit a room from below (measured: ΔE00 ≈ 20). Build exterior blocks lean instead: real silhouettes at real
+   distances, low-resolution textures.
+10. **A global safe-off list, once the previs cameras exist (§4):** the objects no ray reaches from any planned camera,
+    directly, through glass or in a reflection (behind walls, other rooms). Verify it by group render: mean ΔE00 < 0.5,
+    p99 < 2. Re-run it when the cameras change. It is a render-time toggle list, never a composition tool (§5, "Hide
+    only the unseen").
+11. **End of stage:** `scene_weight.py --budget` on the dressed master, and the renderer's own memory figure on one
+    previs frame (the final word over any estimate). Both go in §11.
 
 ## 4. ★ Layout and scale, with previs cameras first
 - Real units and human anchors: doors, sockets at their real heights, an everyday object of known size.
@@ -104,6 +172,9 @@ re-measure for a different kind of place.
   blocks cut a third-floor window at +10° across a 20 m street). Put a gap on the sun's line, as a real street would
   have. A tree exactly on the line throws a full shadow instead of dapple; move it until only its crown's edge crosses
   the beam. A kit block rotated 180° lands at world x ∈ [cx − b, cx − a] for local extents [a, b]: check the extents.
+- **Confirm sun reach per light state:** the plan render plus a ray probe from the product toward the sun for every
+  daylit state that promises sun on it (`lighting.md` §9.6).
+- **Once the previs cameras exist, build the global safe-off list** (§3b.10).
 
 ## 5. ★ Dress in context: the product's system first, then layers, then fill
 **Ask what would really be here if someone lived or worked here** (a standing rule). Before placing a single
@@ -125,7 +196,8 @@ the bible's *event*, without the system and the background layer, reads as unint
    effect.
 6. **Life pass:** the drink going cold, the book left open, the throw half off the chair, the chair turned. At blue
    hour the life pass includes the street: light a random ~35 % of the neighbouring buildings' window panes (one
-   `Random Per Island` per pane, 2500–3800 K, 0.3–1.1× brightness) and turn the room's own sconces on.
+   `Random Per Island` per pane, 2500–3800 K, 0.3–1.1× brightness) and turn the room's own sconces on. Lit
+   neighbour windows glow for the camera and reflections but stay out of light sampling (`lighting.md` §8).
 
 - **Props age; the product doesn't.** A prop seen at insert range or closer needs its physical history: a slight bow
   from what it holds, bevelled fold edges (Bevel modifier, angle-limited), rub wear where contents press, scuffed
@@ -134,7 +206,9 @@ the bible's *event*, without the system and the background layer, reads as unint
   every object inside your new props' volumes and remove or move them.
 - **No interpenetration.** After dressing, run an automated overlap check in the scene build: BVH-tree overlap between
   every pair of placed objects, tolerance ~1 mm. Fail and print the offenders before rendering; resolve by nudging
-  along the contact normal. Fix the generator, not the instance.
+  along the contact normal. Fix the generator, not the instance; limit how far a drop-to-support may reach, and clamp
+  cables ≥ 0.5 mm off every surface. The gate is **0 interpenetrating pairs visible to any planned camera**; authored
+  kit contacts no camera sees are listed, not chased (measured once: 827 pairs → 41, 0 visible).
 - **Hide only the unseen.** A per-shot hide list is a render trim, computed from visibility over the whole camera path
   and verified densely. If an audit says "hide X", replace it with a camera fix (or, rarely, a plausible re-dress with
   a note).
@@ -147,7 +221,7 @@ the bible's *event*, without the system and the background layer, reads as unint
   brighter than the product near it goes; the squint test finds it.
 - **Graphics are generic and logo-free.** Kit props can carry real marks: keep them out of focus or out of frame.
 - **Repetition hunt from the camera:** the same small object twice in one frame is a tell. Delete one.
-- **Vary instances** by rotation and ±5 % scale.
+- **Vary instances** by rotation and ±5 % scale, kept as instances (§3b.5).
 
 **Fill numbers (measured from photos of real homes and real setups of the product type):**
 - **A support surface (sideboard, table):** the product + 5–7 objects in 3 groups, 30–40 % of the top left empty.
@@ -166,10 +240,10 @@ the bible's *event*, without the system and the background layer, reads as unint
   patches, a plant's species suits its window, an appliance from another mains region needs its converter, equipment
   isn't stacked where it would overheat).
 
-**Build what kits lack** procedurally, at real sizes, varied per instance: books (rows with a leaning end book;
-stacks), media on shelves (spines out, some pulled or leaning), wall shelving, framed prints (your own abstract art,
-mat, glazing), radiators, outlets on conduit, cables as curves. Build the product's system components from the
-period's real designs, laid out in mm.
+**Build what kits lack** procedurally, at real sizes, as instances of a few meshes with the variation stored per
+instance as data (§3b.6): books (rows with a leaning end book; stacks), media on shelves (spines out, some pulled or
+leaning), wall shelving, framed prints (your own abstract art, mat, glazing), radiators, outlets on conduit, cables as
+curves. Build the product's system components from the period's real designs, laid out in mm.
 
 ## 6. ★ Light only what the place would light
 - **The sun comes from the sky map, split.**
@@ -178,11 +252,17 @@ period's real designs, laid out in mm.
   - Colour temperature follows elevation: +10° ≈ 3300 K, +6° ≈ 2900 K, +4° ≈ 2600 K.
 - **Windows are thin panes:** Transparent + a front-face-only Fresnel gloss. The sky strength sets the cool shadow
   fill, which makes golden hour vibrant: warm patches against cool shade.
-- **Haze is a whisper:** σ ≈ 0.006 m⁻¹ for a 10 m room. σ 0.03 reads as brown fog; real interior photographs show
-  almost no god rays.
+- **Haze is opt-in** (`lighting.md` §2). Start without it; real interior photographs show almost no god rays. Add a
+  volume only for a named job, with its render cost measured on the state's KEY. If kept: σ ≈ 0.006 m⁻¹ for a 10 m
+  room (σ 0.03 reads as brown fog).
 - **Practicals:**
   - off by day;
-  - after sunset, a lamp is always in frame: a point light inside a real shade, 2700–3000 K, its own light group;
+  - after sunset, a lamp is always in frame, 2700–3000 K, its own light group, **built to converge**
+    (`lighting.md` §8): an analytic sphere at the filament, the shade as its own fitted emitter, the fixture excluded
+    from the bulb's light. Why: a point light buried in its shade spends most of its samples inside the lamp
+    (measured once: ~90 % of a night frame's noise for under a tenth of its light);
+  - things that glow but aren't lights (screens, dials, lit neighbour windows) glow for the camera and in
+    reflections, but stay out of light sampling;
   - **the lamps are the key at blue hour.** A lamp in frame whose pool is the key, plus one off-frame; lamps make
     pools, not washes. Under-powered lamps leave the room dim, and lifting it in the grade (≈ +2 EV) turns it into a
     grey day; over-powered off-frame lamps wash a wall evenly;
@@ -216,9 +296,11 @@ break the causality audit.
 
 ## 8. ★ Previs loop, then renders
 - **Previs:** 960×540, 32 spp (measured ≈ 30 s a frame in Cycles on a laptop-class GPU). Tile the frames into contact
-  sheets and fix one thing per pass; expect several passes.
+  sheets and fix one thing per pass; expect several passes. Write the preview seconds per frame and the §11 numbers in
+  the sheet's caption, so weight creeping in shows up on the pass that added it.
 - **Board:** 1600×900, 160 spp EXR, for storyboard frames.
-- **Final:** 2048×1152, 640 spp EXR, light groups key / world / practical with light-group denoising, for the hero.
+- **Final:** 2048×1152 EXR with light groups key / world / practical, for the hero; sampling and denoising follow the
+  production policy (stage 6).
 
 ## 9. ★ Post like a photograph, then finish every shot in its own Resolve project
 **Save each comp as a DaVinci Resolve project, so it can be opened and adjusted** (`finishing.md`).
@@ -254,23 +336,105 @@ The order a photon meets glass, film and print:
 4. **Per-channel film grain last:** Kodak 5248 proportions (R/G/B size 3.3/2.9/2.5 px at 2K, strength
    0.42/0.46/0.85). G σ ≈ 2 codes by day and 3 at dusk, grain 25 % coarser at dusk, weighted to the mid-tones.
 
-## 10. ★ Audit before delivery (the ★ items)
+## 10. ★ Audits
+The ★ checklist:
 - View transform chosen and never Standard. Scene-linear EXR.
 - Bible, wear map and palette lock are written. Real units and human anchors are in.
 - Micro-bevels on your own parts. Roughness varied on every hero surface. Breakdown follows the wear map.
 - Scatter by rule with exceptions. Hero props unique. Clutter follows use.
-- The sun is split and aimed, with thin-glass windows. Every light is motivated. Haze is a whisper.
+- The sun is split and aimed, with thin-glass windows. Every light is motivated. Haze only with a named job and a
+  measured cost.
 - Real focal lengths, stops and heights. Foreground and depth layers present.
 - Grain per channel, after optics and defocus.
-- **Audits:**
-  - overlap check: zero interpenetrating pairs visible to any camera;
-  - hide lists: every hidden object is unseen over the whole path;
-  - repetition hunt from the camera;
-  - squint test: the product wins the value and colour hierarchy;
-  - scale test: DoF, texel density and atmosphere agree;
-  - causality test: pick 10 random details, and the bible must explain each;
-  - context test: the product's system is present, and no surface, wall or corner in frame is empty by accident;
-  - silhouette test.
+
+### 10.1 Quick audits (every pass of the previs loop)
+- overlap check: 0 interpenetrating pairs visible to any planned camera, the rest listed (§5);
+- hide lists: every hidden object is unseen over the whole path;
+- repetition hunt from the camera;
+- squint test: the product wins the value and colour hierarchy near it;
+- scale test: DoF, texel density and atmosphere agree;
+- causality test: pick 10 random details, and the bible must explain each;
+- context test: the product's system is present, and no surface, wall or corner in frame is empty by accident;
+- shape test: threshold the frame at its 80th luminance percentile; the main masses read as shapes, and in a product
+  frame so does the product.
+
+### 10.2 In-render albedo audit (after dressing, before stage 5 sets energies)
+A texture map's mean (§3) is not what the camera sees: tints, mixes and layers change it. Measure it in the render.
+1. Render one lit preview with the Diffuse Color, Diffuse Direct and Diffuse Indirect passes and object IDs.
+2. For every visible object, take its median diffuse colour (linear) and compare it with the real material's
+   reflectance (§3).
+3. Flag anything below 0.02 or above 0.85, chroma outliers, and anything off by more than about ×1.5 (judgement).
+   Hero supports and large areas sit within ~×1.3 of their target.
+4. Fix before light energies are calibrated. Then check where the sun lands: shade colour comes from what the sun
+   hits, so put something light in the beam if the bible allows.
+
+Why: albedo compounds through every bounce, and bounce depth doesn't. Measured: 2× the wall albedo gave 5.2× the
+light in a shaded corner, while 6 → 12 diffuse bounces changed a dressed room by 0.0 %. A dim room is a scene problem,
+not a kernel problem.
+
+### 10.3 Silhouette audit (measured), and the fix
+A flat textured wall or an unbevelled edge on an outline is a ruler line. It reads as CG in a wide, however good its
+texture. Find these lines by measurement, not by eye:
+1. From the previs EXRs (depth, normals, object IDs), build three edge maps:
+   - silhouettes: depth steps;
+   - creases: normals more than ~38° apart within one object (anti-aliasing splits a 90° arris into two ~45° steps);
+   - junctions: object changes with no depth step.
+2. Keep pixel-straight runs of ≥ ~45 px (a Hough transform; ≥ 92 % of the run within 1 px).
+3. Name the material under each run with a ray recast through the shot camera.
+4. List knife edges: convex edges > 60° with no bevel faces.
+5. Flag textured architecture (brick, stone, tile, rough plaster) on any outline, and unbevelled edges on props near
+   the lens.
+6. Fix the flagged runs (below), then re-run until no flagged run is visible in any planned camera.
+
+Measured once: 434 straight runs in 13 frames, and the one the user had named was among those flagged.
+
+**The fix.** A bump changes nothing at an outline, and modelled 10 mm recessed joints (cut and set back, UVs kept)
+read the same as flat at shot distance. What works:
+- for textured architecture, **render-time displacement from a map derived from the albedo** (raised material white,
+  mortar black, small holes closed, ~0.5 mm softening, ~10 % fine detail), ~8 mm, smoothed normals at convex corners:
+  corners step in at every joint and the units read raised (method: stage 3; engine specifics: the engine's displacement docs, or `/octane` if installed);
+- real edge units (modelled bricks or stones along the corner);
+- bevels on knife edges.
+
+Costs (measured): edge units nothing (32 vs 31 s per frame); true displacement in Cycles +70 %; texture displacement
+in Octane ~0 sampling time. Judge a fix at the corner, at 2×, in the shot's own light: a proof lit head-on hides relief.
+
+### 10.4 The realism manifest
+Every master records the realism features it carries, each with a switch that defaults on for finals:
+- displacement maps;
+- edge units;
+- bevels;
+- breakdown and wear switches;
+- glass layers;
+- per-state material values (`lighting.md` §3).
+
+Store it with the master (a JSON beside it, or properties on the scene). A harness may switch a feature off for a grey
+box only; a final may not, unless the user agrees. **Stage 8 (FKL) reads the manifest back from the saved file** and
+re-runs the silhouette audit (§10.3) on the FKL frames. Why: a silhouette fix the user approved was switched off by
+the next harness, carried into the final engine's master, and found again by the user in the final week.
+
+## 11. Measure and gate (stage 4)
+| Measure | How | Pass |
+|---|---|---|
+| Causality | 10 random details picked from the frames | 10/10 explained by the bible |
+| Context and fill | the product's system listed; fill counts (§5) | system present; counts inside the measured norms, or a written reason |
+| Overlap | BVH pairs at ~1 mm (§5) | 0 interpenetrating pairs visible to any planned camera; the rest listed |
+| Repetition, squint, shape | §10.1 | no repeat inside a frame; the product wins value and colour near it |
+| Texel density | screen pixels per metre ÷ texels per metre on hero surfaces, at the closest planned framing | ≥ 1 texel per pixel (judgement) |
+| Silhouette | §10.3 | 0 flagged straight runs visible in any planned camera |
+| Albedo | §10.2 | nothing visible below 0.02 or above 0.85; hero supports and large areas within ~×1.3 of target |
+| Sun reach | plan render + ray probe per daylit state (§4) | the sun reaches what each state promises |
+| Weight | `scripts/scene_weight.py --budget` on the dressed master (§3b) | every line passes or carries a written reason; each flagged asset fixed or accepted with a reason |
+| Memory | the renderer's own figure on one previs frame | in core on the smallest render card, with the headroom `scene-optimisation.md` §0 sets |
+| Safe-off list | group render with and without it (§3b.10) | mean ΔE00 < 0.5, p99 < 2 |
+| Preview cost | seconds per frame at the previs config (§8) | written on the sheet; within the budget |
+| Realism manifest | §10.4 | written; every switch on |
+
+**Studio** (lane B, a builder from a JSON spec): the light ratios, read from light groups on a grey card at the
+product: the world 0.5–2 % of the key, the set-only twin 25–30 % of the key (~4 % under a macro lens). Overlap, weight,
+memory and the realism manifest as above.
+
+**Show the user** the previs contact sheet with these numbers in its caption, and the budget table beside it.
 
 ## Verdicts
 - A complete kit room with real exterior depth, a split and aimed low sun, and a lived-in bible read as photographs

@@ -1,0 +1,36 @@
+{
+  "_about": "Written at stage 0.5 from setup.json (the smallest render card) and the film's machine-time budget; one per study, versioned. scene_weight.py --budget checks the scene keys at the end of stages 2, 3, 4, 5 and 10; the time keys are checked by the stage 5 convergence record and the stage 10 estimate. Meanings, derivations and which values are measured or judgement: references/scene-optimisation.md section 0. Keys starting with _ are notes.",
+
+  "card_gb": 24,
+  "max_vram_share": 0.5,
+
+  "max_triangles": 10000000,
+  "max_object_triangles": 1000000,
+  "max_object_share": 0.15,
+  "max_objects": 1000,
+  "hero_collections": ["PRODUCT"],
+
+  "max_image_px": 2048,
+  "max_image_gb": 8,
+
+  "max_shader_programs": 50,
+  "max_procedural_nodes": 100,
+  "max_script_nodes": 40,
+
+  "max_mesh_emitters": 200,
+  "max_sampled_mesh_emitters": 6,
+
+  "film_frames": 2400,
+  "machine_hours": 30,
+  "s_per_frame_by_state": {"day": 45, "dusk": 50, "night": 35},
+  "noise_target": "render residual <= the film grain sigma in the darkest third of the frame, display domain, 1:1, no denoiser",
+
+  "_card_gb": "smallest card that will render finals (setup.json); 4 cards add speed, not memory",
+  "_max_vram_share": "scene_weight's estimate and the renderer's own figure, as a share of card_gb (judgement)",
+  "_hero_collections": "exempt from the per-object and per-image lines: the product, its prints and labels; the world's images (the HDRI) are exempt whenever this key is present",
+  "_max_image_px": "longest side of any non-hero image: set textures capped at load",
+  "_max_image_gb": "about card_gb x max_vram_share - geometry estimate - frame buffers and passes (1-2 GB at 1080p)",
+  "_max_sampled_mesh_emitters": "the practicals meant to light; every other glowing prop is out of light sampling",
+  "_s_per_frame_by_state": "renderer seconds per 1080p frame at the noise target with the passes on, on the production node; frame-weighted they fit machine_hours with the fixed costs",
+  "_film_frames": "planned frames including handles and the end hold"
+}

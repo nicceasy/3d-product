@@ -25,6 +25,8 @@ the images that show it (URL of the page and of the image, what it shows, why it
   - It may also show the images as links.
 - Measured references beat mood references: when an image sets a target (a colour, a light ratio, a texture), measure
   it and write the number next to the link.
+- **Footage is a reference library.** Export frames at ~1 fps into one folder, then pick the modelling frames per part
+  and view. They fill the coverage matrix (§ Measure and gate) like photos do.
 
 ## When
 | Step | What to research before touching it |
@@ -82,6 +84,8 @@ the images that show it (URL of the page and of the image, what it shows, why it
 7. While the agents run, build **instruments** that don't depend on their answers (e.g. a zebra tunnel, curvature combs, SDF kernels).
 8. When they land, read the TL;DRs and the sections you need, and write a **"Phase n · Research lands → decisions"** entry in
    THINKING.md that says which recommendations were adopted, which were contradicted by our own tests, and why.
+   Two independent tracks reaching the same answer is the confirmation. A finding from one source is a hypothesis:
+   flag it. Where two sources disagree, enter both numbers in the conflicts register (below).
 9. **Test what research says against renders.** Research sets hypotheses; renders decide, and captions record what the
    image shows. (Measured once: research predicted a ray-mask cost of 3.2×, and the render measured 3.2×.)
 
@@ -98,7 +102,24 @@ plan you propose carries its machine-time estimate and fits <budget> (cut it unt
 Return a <300-word summary of the key decisions.
 ```
 Research is time-boxed like everything else (`fast-feedback.md`): the lead reads the first checkpoint and redirects
-the track, rather than waiting for the full document.
+the track, rather than waiting for the full document. Run the setup probe (stage 0.5, seconds) with the brief, so
+`<budget>` is tests × the bench seconds it measured, not a guess.
+
+## Measure and gate
+Stage 0 closes on four tables, not on "the research landed". Why: an open conflict between two sources (a
+camera-solved reading and a drawing reading 16 mm apart) passed this stage and stayed open into production; and the
+targets measured on reference images are what the later light and finishing gates check against.
+
+| Table | What it holds | How | Pass |
+|---|---|---|---|
+| Reference coverage | part × view × variant → sources, resolution, mm/px | from the md5-deduplicated reference table (`reference-detailing.md` §1) and the footage library | empty cells listed; every hero part has ≥ 2 independent sources or a labelled estimate (`reference-detailing.md` §4) |
+| Conflicts register | source A vs B, both numbers, the gap, and how it will be decided: closure on a spec, a camera solve, a held-out source or a hard constraint (`patent-to-model.md` §0) | every disagreement found while measuring or in a TL;DR | each conflict has a deciding method; undecided ones go to stage 1 as model gaps keyed to the shots that would show them |
+| Targets per light regime | median luminance, % crushed blacks, % clipped highlights and colour cast, per regime the film will show, beside the image link | a frame-statistics tool on linearised reference images the user trusts | one row per planned regime, numbers written |
+| Identity | product, variant, nature sentence, lead element | the identity and details tracks, run independently | the tracks agree, or the identity is flagged as a hypothesis |
+
+**Ready to model** is said to the user with the coverage matrix: hero parts covered, each conflict with its deciding
+method, the time box met. **Sheet:** the reference sheet (links + measurements) carrying the four tables, and the
+one-page brief.
 
 ## References on the board
 - Put references in FigJam as **links with a one-line note**, never as downloaded images. A research section per study
@@ -114,4 +135,3 @@ Once research has fixed the architecture, whole products can go to builder agent
 - best-camera spec dicts for reuse in the storyboard.
 
 Review their sheets before using the models.
-

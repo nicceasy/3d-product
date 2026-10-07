@@ -9,7 +9,8 @@ Glass, caustics and haze · Other kernels · OCCT and build123d · Meshes, glTF,
 and sun · Camera, lens and focus · Animation and motion blur · Look-dev, calibration and photo matching · Measuring
 renders · Scenes, trims and render state · Octane · DaVinci Resolve scripting · Resolve looks (Fusion and OFX) · Grade
 solver and grading · FigJam · Probing a setup · Agents, orchestration and permissions · Film light, grade, transitions
-and materials · Prints and labels · Unattended renders · Sound and music · History: Comfy Cloud and diffusion passes
+and materials · Prints and labels · Unattended renders · Sound and music · Production renders · History: Comfy Cloud and
+diffusion passes
 
 ## Environment and shell
 - build123d and cadquery can't share a venv (conflicting OCP wheels); uninstalling one breaks the other.
@@ -291,8 +292,9 @@ and materials · Prints and labels · Unattended renders · Sound and music · H
 - A literature material recipe can be right in **shape** and wrong in **energy**: test it in isolation (black world, one
   light), then in the set.
 - A research-measured bump can be invisible in the render, and one that matches at grazing looks like sandpaper
-  head-on: calibrate on swatches at the photo's mm/px under the photo's light, one variable per swatch, with two scales
-  plus a roughness mottle, and check both views.
+  head-on: calibrate on swatches at the photo's mm/px under the photo's light, one variable per swatch, pass them by
+  number in both views, then re-judge any mottle or bump at the closest planned framing with two seeds (a photo-scale
+  mottle read as blotches in a close-up).
 - Dust specks at 0.35 grey read as white stars on black lacquer; 0.2 grey with roughness 0.75 matches photographed faint
   specks (they brighten in the sheen, not in diffuse light).
 - **Dark glossy or anisotropic surfaces** (a grooved disc, brushed metal): a white room or a huge overhead panel lifts
@@ -349,6 +351,10 @@ Facts for OctaneBlender / OctaneServer 31.10 on a Windows render node; the produ
 - Set `prefer_image_type = HDR` for linear EXRs. `scene.octane.devices` is ignored: the server preferences pick the GPUs.
 - `stop_render()` can't be skipped between two renders in one Blender session: the second hangs ("MapViewOfFile failed:
   5"). That hang is the client's: kill only your own hung Blender, not the server (a hung server is the case above).
+- **One Octane client at a time.** Starting a second Blender with the Octane add-on enabled on the render node, even for
+  a read-only query in another session, connects to the same server and resets it: the running render stalls (GPUs drop
+  to 0 %, the client's memory collapses) and never recovers. Query scenes with `--factory-startup` or wait for the render
+  to finish; queue the next job on the previous job's done marker, never on a timer.
 
 **Per-frame cost**
 - Every stock render session JIT-compiles a fresh OSL kernel (~25 MB, ~60–73 s, a new hash every time, so no
@@ -358,8 +364,10 @@ Facts for OctaneBlender / OctaneServer 31.10 on a Windows render node; the produ
 - Static meshes are cached from frame 2. Only 'Reshapable proxy' or deform-modified meshes re-export.
 
 **Sampling**
-- Adaptive sampling "does nothing" until expected exposure matches the display exposure (e.g. AgX −1.45 EV → 0.366) and
-  min < max. Prove it with `use_pass_noise`.
+- Adaptive sampling "does nothing" until expected exposure matches the imager exposure (1 at a neutral imager, which
+  is how finals render) and min < max. Prove it by the renderer's time against a flat-cap render and with the noise
+  pass, never by the setting. Set it inside one complete spec after a reset: a value left over from an earlier session
+  lingers in the saved scene (`cycles-production.md` §9.4).
 - Octane applies noise threshold, min samples and expected exposure without restarting a running render: in a live
   sweep, force a clean restart for every same-frame step (hop to another frame and back).
 - Coherent ratio 0.5 = −25 % sampling at equal noise; test ≤ 0.35 for flicker, with static noise. Coherent > 0 without
@@ -507,7 +515,7 @@ builds in seconds.
 - **Status before evidence:** "restarted" is not "rendering". Report counted frames, GPU load and file times; say "not
   yet confirmed" until new output lands; compute an ETA from the measured rate.
 
-## Film light, grade, transitions and materials (2026-09-29)
+## Film light, grade, transitions and materials
 - A night window that reads as a milky, glowing wall: a small diffuse or milky layer in the glass (invisible by day) lit
   by the interior lamps, or a converted Mix that weights the wrong input (the Octane Mix inversion above). Check every
   glass layer in the night state; the audience must see out.
@@ -535,7 +543,7 @@ builds in seconds.
 - A brightening / desaturating chain applied to a wood texture turned one species into another: target the measured
   colour of the real finish instead.
 
-## Prints and labels (2026-10-01)
+## Prints and labels
 - Some engines ignore an image's alpha: write flattened copies (holes in the old art's hole colour, outside the face in
   its edge colour), keep the RGBA master.
 - Measuring a reference's type on an un-deskewed photo inflates long lines' boxes (~1° is enough): deskew first.
@@ -543,7 +551,7 @@ builds in seconds.
   in motion.
 - Type set per line drifts; lines of one class must share one size (the real object does).
 
-## Unattended renders (2026-10-01)
+## Unattended renders
 - A watchdog that watches a process exits after a node reboot ("no process found"), and a queue script then moves to
   the next session and drops the rest of the run: one supervisor owns the run (`render-supervision.md`).
 - Counting frames or reading a log's age through a network mount: the client's cache hides new files or makes a live run
@@ -552,7 +560,7 @@ builds in seconds.
   at every logon, after the tool; never raise it from a script.
 - Overnight watching by an agent costs credits and dies with the session: the user ruled it out.
 
-## Sound and music (2026-10-01)
+## Sound and music
 - **Generators ignore requested keys**, treat tempo as a hint (some within ~1–2 %, some ignore it) and never follow a
   varying tempo: measure key, tuning and tempo of every take (`sound-design.md` §5).
 - A measured tuning offset (+20 cents) failed to reproduce on a second method; the music was at A440. Cross-check a
@@ -577,6 +585,21 @@ builds in seconds.
   planning (per-node lookups can 404).
 - Loudness curves time-stamped at the window's end (a live meter) lag their cause by half a window: analyse with
   centred windows so steps and dips line up with the picture's marks.
+
+## Production renders
+- **Blender 5.x multilayer EXR**: `image_settings.file_format = "OPEN_EXR_MULTILAYER"` no longer exists; set `image_settings.media_type = "MULTI_LAYER_IMAGE"` first; `file_format` is then `"OPEN_EXR_MULTILAYER"` (the only value it accepts). Light-group passes need it.
+- **Blender Python, changing objects while iterating `collection.all_objects`**: the iterator stops early (setting `hide_render` on 114 objects touched 2). Iterate over `list(collection.all_objects)`.
+- **Static noise ON on a moving camera** reads as dirt on the lens (the residual noise is screen-locked). OFF at ≥ 8k cap
+  costs no visible flicker.
+- **Inline PowerShell through ssh** (`$_`) is eaten by the remote shell: counts read 0 → false hangs → a shot marked done
+  at 29 %. Script files on the node; prove the count on a known folder.
+- **A network share caches a new folder as missing:** a run looked hung for 8 min and was restarted. Count on the node.
+- **Driver version bumps vs the busy lock:** a lock matching one driver name can't see the next; match the family.
+- **Pausing a queue:** a newline-separated PID list fails `kill` in zsh; orphaned launchers waiting on the lock race the
+  restarted supervisor. Kill by single verified PIDs, list before and after.
+- **Follow geometric normal** displacement cracks convex corners; use smoothed normals.
+- **Re-solved auto-timing** cancels per-shot lifts; carry approved values forward (`finishing.md` §6).
+- **A proof that shows nothing:** head-on light flattened a 10 mm relief; check with a difference map, then light it raking.
 
 ## History: Comfy Cloud and diffusion passes
 Comfy and AI image passes left the pipeline; don't propose them. Their traps (Comfy Cloud API, partner nodes, hosted

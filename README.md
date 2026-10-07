@@ -25,7 +25,8 @@ The film above was the test: 98 seconds of a 1976 Braun PS 550 turntable across 
 7. **Film grammar built in.** Simple camera moves, cuts on the product's own motion, light that tells the time of day, a touch of operator drift.
 8. **Sound included.** Soundscapes and original music fitted to the cut, mixed and loudness-checked.
 9. **It runs on what you have.** A setup probe picks the engine: Cycles on a laptop for previews, Octane on a GPU machine for finals.
-10. **Review from anywhere.** Every pass lands as stills, contact sheets and cuts on a FigJam board and in a synced folder you can open on a phone.
+10. **Review from anywhere.** Every pass lands as stills and contact sheets on a FigJam board, and as review videos in a synced folder you can open on a phone.
+11. **Every stage measured.** Each stage ends with numbers against pass values (a compositional analysis on every frame, motion checks on every camera move, loudness steps and entries on the mix), and the scene is weighed against a budget from the first build, so nothing has to be cut down at the end.
 
 ![A grid of clay renders: the grey-box composition lock-in.](assets/greybox-lock-in.jpg)
 
@@ -34,21 +35,21 @@ The film above was the test: 98 seconds of a 1976 Braun PS 550 turntable across 
 In Claude Code, add this repo as a plugin marketplace and install the plugin:
 
 ```
-/plugin marketplace add nicceasy/3d-productmotion
-/plugin install 3d-product@3d-productmotion
+/plugin marketplace add nicceasy/3d-product
+/plugin install 3d-product@3d-product
 ```
 
 Or with the skills CLI:
 
 ```
-npx skills add nicceasy/3d-productmotion
+npx skills add nicceasy/3d-product
 ```
 
 Or copy the skill folder by hand:
 
 ```
-git clone https://github.com/nicceasy/3d-productmotion.git
-cp -R 3d-productmotion/skills/3d-product ~/.claude/skills/
+git clone https://github.com/nicceasy/3d-product.git
+cp -R 3d-product/skills/3d-product ~/.claude/skills/
 ```
 
 Claude picks the skill up on its own when you ask for a product film, a packshot or a render from a patent. You can also call it by name.
@@ -85,7 +86,8 @@ Run `scripts/probe_setup.py` first (stage 0.5). It checks your machines read-onl
 skills/3d-product/
   SKILL.md        the pipeline: sixteen gated stages, the rules over every stage, orchestration
   references/     one file per stage or topic: lighting, camera motion, editing, sound, finishing, traps
-  scripts/        setup probe, "reads" lighting metric, loudness checker, macro focus calculator,
+  scripts/        setup probe, scene weight check and budget example, "reads" lighting metric,
+                  compositional analysis, motion QA, loudness checker, macro focus calculator,
                   overnight render supervisor template, FigJam section builder
 ```
 

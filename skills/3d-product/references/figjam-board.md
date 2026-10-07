@@ -30,7 +30,7 @@ wide.
 Traps: the canvas-wide `byName` lookup only sees *top-level* nodes (images already moved into a section are skipped);
 clearing connector labels by text also clears flow-column labels — filter by endpoint.
 
-## Board shape (user rule)
+## Board shape (a standing rule)
 Keep each board near a screen aspect, about 1:1 to 1.6:1 landscape, never one long vertical strip (the author: "keep the
 aspect ratio less extreme"). Lay sections out in columns (reading order column by column) or in row bands, with wide
 grids such as a combination matrix in a top band. Add new sections as a new column or under the shortest column.
@@ -50,4 +50,6 @@ Estimate the total section area before building, and check the bounding box afte
   (`findAll(n => n.type === 'STAMP')`) and map each to the nearest tile; save the picks to a dated JSON.
 - **Motion:** GIF fills render blank in the MCP screenshot API (the bytes are stored), so layer the KEY frame as a
   poster fill under each GIF; put MP4s in the review folder, not on the board.
-- Every review section also goes to the review folder (`SKILL.md` stage 13), so the user can review on a phone.
+- **The split between the two surfaces, at every checkpoint:** stills, contact sheets and documents go on the board
+  (their files stay local); review videos go to the review folder, one per review section (`fast-feedback.md`). Report every
+  deliverable with its full local path in its own code block.

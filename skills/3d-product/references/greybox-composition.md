@@ -1,21 +1,29 @@
-# Grey-box composition lock-in
+# Grey-box lock-in: moves between stamped compositions
 
-The user's process for storyboards with camera moves:
+The process for storyboards with camera moves, in the author's order ("composition and first key last
+frames should happen before motion"):
 1. Research what to show (the product's functions and unique elements) and how to move (moves, rack focus, bokeh,
    composition), both with reference images.
-2. Render ≥ 30 grey-box pairs (KEY frame + LAST frame), straight from render, with no comp.
-3. Analyse them against composition principles.
-4. The user picks about 10.
-5. Full renders, comped and graded.
+2. **Compose stand-alone stills first**, analysed against composition principles (`composition-analysis.md`): the 50
+   compositions at preview cost (`composition-exploration.md`), or grey-box stills from this harness. The user stamps
+   them.
+3. **Render ≥ 30 grey-box moves from the stamped compositions**, straight from render, with no comp. The KEY is a
+   stamped composition; FIRST and LAST are where a legal simple move puts the camera.
+4. Analyse every end frame as a composition, and every move as a move.
+5. The user picks.
+6. FIRST / KEY / LAST in the lit preview (stage 8), then production.
 
-Grey box first because a camera, a pose and a DOF choice cost seconds in clay and hours in a lit sequence.
+Grey box first because a camera, a pose and a DOF choice cost seconds in clay and hours in a lit sequence. Moves second
+because a move chosen before its frames are composed gives weak ends: a pair lock-in run first filled the frame edge
+to edge with the product in 64 of 68 frames, and the FIRST frames extrapolated along those moves were the weakest
+frames of the film [measured].
 
-## The lock-in harness (what it must do)
+## The harness (stills and moves)
 - **Build the set once**, then per shot:
   - swap in the posed product (cached exports per pose: each mechanism at its story states);
   - clay every material except glass and emitters, so windows and practicals still light the set and make bokeh;
   - render each frame with real DOF to EXR (Combined, Depth, Object Index: product / subject / any secondary part);
-  - write JSON with the camera, focus, the projected subjects and both frames' focus points, plus ray-cast occlusion
+  - write JSON with the camera, focus, the projected subjects and the frames' focus points, plus ray-cast occlusion
     (the first hit from the camera to each subject);
   - allow a metadata-only rerun that rewrites the JSON without rendering.
   Measured: ≈ 15 s per frame at 1280×720, 64 spp on a laptop-class GPU (measured once); the set build ≈ 12 s.
@@ -25,23 +33,41 @@ Grey box first because a camera, a pose and a DOF choice cost seconds in clay an
   - Derived: m = 36/W, s = f(1 + 1/m), Blender focal = f(1 + m), Blender f-stop = N(1 + m).
   - A hold-location option pans or tilts from the KEY camera.
   - DOF depends only on m and N; focal length sets perspective and bokeh size.
-- **Post:** EXR → PNG in the exact view transform the final uses, plus metric depth and the index mask.
-- **Analyse** each frame and the pair:
-  - placement against thirds / phi / spiral eye / Westhoff / centre with the null hit rate, spiral flow credited only
-    when edges follow it, leading lines, balance, dominance, negative space, metric depth layers, thin-lens DOF,
-    bokeh, edge tension and tilt, and a pair score for the move;
-  - **F** (DOF and rack readability: blur at the projected subjects, px at 1920) and **H** (one dominant change over
-    threshold: scale ×1.25, arc/pedestal 12°, truck 20 % of the field, rack 12 px each way, plus the mechanism when the
-    pose changes);
-  - score = 0.6 × the pair score + 20·F/4 + 20·H/4;
-  - outputs a clean stacked pair (for picking) and an annotated pair (overlays) per shot, plus a ranking.
+- **Post:** EXR → PNG in the exact view transform the previews use, plus metric depth and the index mask; then
+  `comp_analysis.py frame` on every frame (`composition-analysis.md` §1).
+
+## Sampling moves: legal simple moves only
+Per stamped KEY, sample the moves `camera-motion.md` §0 allows, nothing else:
+1. **Generator:** push or pull, arc, crane, truck or pedestal, pan or tilt; or a legal pair (push + boom, arc + track)
+   with the secondary ≤ 0.25 of the primary.
+2. **Direction:** both signs.
+3. **Rate:** under the speed ceiling (`camera-motion.md` §0), sized for the planned duration; sample about half and
+   all of the size that duration allows.
+4. **t_KEY:** where the KEY sits in the shot: at the start, the middle or the end.
+5. **Pre-gate** both ends by geometry (`composition-analysis.md` §B), and every 12th in-between for clearance and
+   occlusion.
+6. **Render** FIRST and LAST; the KEY once per composition.
+
+A move too small to read within the planned duration at the ceiling is not a move: hold, or cut. Two stamped
+compositions that no legal move joins are a cut, never an aperture ramp, a lens swap or a zoom.
+
+## Scoring: the ends as compositions, the move as a move
+- **The composition test (a gate).** FIRST and LAST each pass `composition-analysis.md` §C and the image checks of
+  §E; the §D items are reported. Clay can't show colour or a glossy black face, so §E3 and G9 wait for the lit
+  preview (stage 8). A move whose end fails is repaired by its direction, rate or t_KEY, or dropped.
+- **The move test (ranks the survivors):**
+  - **F**: DOF and rack readability (blur at the projected subjects, px at 1920);
+  - **H**: one dominant change over threshold (scale ×1.25, arc or pedestal 12°, truck 20 % of the field, rack 12 px
+    each way, plus the mechanism when the pose changes). A second camera change stays ≤ 0.25 of the first (the
+    simple-move rule); a rack or the mechanism may ride along;
+  - the pair metrics: subject displacement, scale change, parallax, rack swap;
+  - score = 0.6 × the pair score + 20·F/4 + 20·H/4.
+- **The shot rules** (`composition-analysis.md` §G2): one subject explored or one clear relay; the subject moves
+  ≤ 15 % W between frames, or along a line visible in both.
+- **Outputs:** a clean FIRST | KEY | LAST strip per move (for picking), the annotated strip (the analysis tiles), and
+  a ranking.
 
 ## Lessons
-- **Composition evidence:** thirds and golden-spiral placement barely predict preference. The spiral scored 0 on
-  every honest test. Inward bias, lead room, converging lines, depth layers and eye-trace continuity do the work.
-  Report the grid, but don't worship it.
-- **A still pair reads as a move** only with one dominant change over threshold. A second camera change must stay
-  under half of the first; a rack or the mechanism may ride along.
 - **"Reasonable but present" DOF** (a ceiling on blur, not a target):
 
   | Shot | DOF | Stop |
@@ -52,22 +78,12 @@ Grey box first because a camera, a pose and a DOF choice cost seconds in clay an
   | MS | 90–130 mm | f/5.6–8 |
 
   A rack reads only when the planes are ≥ 5 DOF apart (≥ 12 px each way at 1920).
-- **Bokeh:** look down the set's longest depth, never into a wall a few hundred mm behind the product. Top-downs have
-  no defocused plane.
-- **The set limits the camera:** measure the clearance around the product in every direction (neighbouring props, the
-  wall behind, a window embrasure) before sampling cameras. Ray-cast occlusion finds props blocking cameras. A camera
-  behind the product may look through an open cover: choose a pose or angle where the cover reads (`lighting.md` §6).
+- **Bokeh:** look down the set's longest clear depth (`composition-analysis.md` §A2, §E5), never into a wall a few
+  hundred mm behind the product. Top-downs have no defocused plane.
+- **The set limits the camera:** the traps and clearances are measured before sampling (`composition-analysis.md`
+  §A2). A camera behind the product may look through an open cover: choose a pose or angle where the cover reads
+  (`lighting.md` §6).
 - **What clay hides:** printed legends, logos and labels vanish. Shots that depend on them can't be judged in plain
   clay (keep the ink, `greybox-animation.md`).
-- **Look at every pair yourself.** A scorer catches out-of-frame subjects and shallow racks. It can't see that a frame
+- **Look at every strip yourself.** A scorer catches out-of-frame subjects and shallow racks. It can't see that a frame
   is mostly background furniture.
-
-## After the beauty round (what the user's review added)
-- The lock-in scores KEY/LAST pairs, but the user judges **FIRST, KEY and LAST each as a stand-alone composition with
-  a subject**. Extrapolated FIRST frames are the weakest frames of a film. Score all three.
-- A subject can be a component *or* a visual element (a reflection, a colour, a shape). A frame with no nameable
-  subject fails no matter how good its grid placement is.
-- Component-only framing gets repetitive ("way too focused on individual components"). Balance macro details with
-  frames where the whole product, or a large part of it, makes the shape.
-- Posing the product (every mechanism's state, what it is doing) and the light are composition tools, not fixed
-  givens: explore them together with the camera.
