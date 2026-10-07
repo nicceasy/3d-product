@@ -39,6 +39,14 @@ In Claude Code, add this repo as a plugin marketplace and install the plugin:
 /plugin install 3d-product@3d-product
 ```
 
+Or with npm (Node 18 or later), which copies the skill into `~/.claude/skills/3d-product`:
+
+```
+npx 3d-product
+```
+
+Add `--project` to install it into the current project's `.claude/skills/` instead, `--force` to update an existing copy (the old one is kept in `skill-backups/`), or run `npx 3d-product uninstall` to remove it.
+
 Or with the skills CLI:
 
 ```

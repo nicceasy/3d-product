@@ -1,0 +1,38 @@
+{
+  "name": "3d-product",
+  "version": "1.1.0",
+  "description": "Installs the /3d-product Claude Code skill: a one-shot pipeline for hardware product films (Blender, Octane or Cycles, DaVinci Resolve).",
+  "bin": {
+    "3d-product": "bin/install.mjs"
+  },
+  "files": [
+    "bin/",
+    "skills/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Nick Conn",
+  "license": "MIT",
+  "homepage": "https://github.com/nicceasy/3d-product",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicceasy/3d-product.git"
+  },
+  "bugs": "https://github.com/nicceasy/3d-product/issues",
+  "keywords": [
+    "claude-code",
+    "claude-skill",
+    "agent-skill",
+    "3d",
+    "product-film",
+    "product-rendering",
+    "blender",
+    "octane",
+    "cycles",
+    "davinci-resolve",
+    "animation"
+  ]
+}
