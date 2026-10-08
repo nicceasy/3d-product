@@ -184,7 +184,7 @@ The skill's rules came from reading first and measuring second. These are the so
   - ["lightSwitchClink"](https://freesound.org/s/64457/) by nicStage, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Excerpted and pitch-shifted.
   - Other effects from [Freesound](https://freesound.org), CC0.
 - **Music.** Two songs by Nick Conn, composed in [Suno](https://suno.com) with the film's original generated records as reference and Claude's prompts. The original records were generated with [Stable Audio 3 Medium](https://huggingface.co/stabilityai/stable-audio-3-medium) (Stability AI) and [Sonilo](https://sonilo.com) through [Comfy Cloud](https://www.comfy.org/cloud); the soundscapes with Stable Audio 3.
-- **Labels.** Two fictional record labels with their own names and art, laid out after measurements of real centre labels.
+- **Labels.** Two fictional record labels, laid out after measurements of real centre labels. The art was made in [Midjourney](https://www.midjourney.com) from Claude's prompts.
 
 
 ## License
