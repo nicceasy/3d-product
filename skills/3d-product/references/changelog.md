@@ -50,3 +50,9 @@ skill alive" in `SKILL.md`). Keep project specifics (shot numbers, part names, p
   matching between neighbours (`finishing.md` §6); film emulation as an alternative finish (`finishing.md` §7).
 - **Review:** the synced review folder holds review videos only; stills and sheets go on the board.
 - New `orchestration.md` (roles, briefs, user gates, permissions, status). New traps under Production renders.
+
+## 1.1.1 · October 2026 · sources and credits
+- The README lists the manuals, standards, papers and references the skill's rules draw on, the tools it drives, and
+  the demo film's credits, including the two CC BY 4.0 sound effects with their source and licence links.
+- The README now says how the demo's music was made: generated takes, then two songs composed in Suno with those takes
+  as reference.

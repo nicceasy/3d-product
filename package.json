@@ -1,6 +1,6 @@
 {
   "name": "3d-product",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Installs the /3d-product Claude Code skill: a one-shot pipeline for hardware product films (Blender, Octane or Cycles, DaVinci Resolve).",
   "bin": {
     "3d-product": "bin/install.mjs"
