@@ -29,7 +29,11 @@ TIMEOUT = 25
 def run(cmd, timeout=None, stdin=None):
     """run a command, never raise: (returncode, stdout, stderr)"""
     try:
-        p = subprocess.run(cmd, input=stdin, capture_output=True, text=True, timeout=timeout or TIMEOUT)
+        # errors="replace": Windows console tools (tasklist, netstat, nvidia-smi) print in the OEM
+        # codepage, which is not UTF-8 on a non-English Windows. Without this, decoding fails and
+        # text=True yields None instead of a string, so the parsers below die on NoneType. The
+        # markers they match (@@, octaneserver, numbers) are ASCII, so replacement chars are harmless.
+        p = subprocess.run(cmd, input=stdin, capture_output=True, text=True, errors="replace", timeout=timeout or TIMEOUT)
         return p.returncode, p.stdout, p.stderr
     except FileNotFoundError:
         return 127, "", "not found"
@@ -212,7 +216,7 @@ def local_resolve():
         prog = ("import DaVinciResolveScript as d; r=d.scriptapp('Resolve'); "
                 "print('@@resolve', (r.GetProductName() if r else 'no connection'), '|', (r.GetVersionString() if r else ''))")
         try:
-            p = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True, timeout=20, env=env)
+            p = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True, errors="replace", timeout=20, env=env)
             m = re.search(r"@@resolve (.*)", p.stdout)
             info["product"] = m.group(1).strip() if m else ("query failed: " + p.stderr.strip()[-200:])
         except Exception as e:  # noqa: BLE001
